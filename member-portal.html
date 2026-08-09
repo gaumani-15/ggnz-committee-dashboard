@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>GGNZ Membership Portal</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600;6..72,700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
+
+<style>
+  :root{
+    --teal-900:#0d332e; --teal-800:#123f38; --teal-700:#14493f; --teal-600:#19584b; --teal-500:#1c6354;
+    --marigold-600:#c8891f; --marigold-500:#dfa53a; --marigold-300:#eec478; --marigold-100:#faecc9;
+    --bg:#eef4f0; --card:#ffffff; --ink:#1b2b26; --muted:#66756e; --border:#d9e3dc;
+    --plum:#7a2e46; --plum-bg:#f7e9ee; --sage:#3f7a52; --sage-bg:#e7f1e9; --amber:#95651a; --amber-bg:#faf0dc;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:'Manrope',sans-serif;}
+  h1,h2,h3{font-family:'Newsreader',serif;}
+  .scallop{height:13px;background: radial-gradient(circle at 10px 0, transparent 9px, var(--marigold-500) 9.5px) 0 -1px/20px 13px repeat-x;}
+
+  .wrap{max-width:480px;margin:0 auto;min-height:100vh;background:var(--bg);}
+  @media (min-width:900px){ body{background:var(--teal-900);} .wrap{box-shadow:0 0 50px rgba(0,0,0,0.25);} }
+
+  .hero{background:var(--teal-900);color:#fff;padding:28px 20px 20px;text-align:center;}
+  .hero .org{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--marigold-300);}
+  .hero h1{margin:4px 0 2px;font-size:24px;}
+  .hero p{color:#c3d6cc;font-size:13px;margin:0;}
+
+  .content{padding:22px 18px 60px;}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px;margin-bottom:16px;}
+
+  .field{margin-bottom:16px;}
+  .field label{display:block;font-size:12px;font-weight:700;letter-spacing:.03em;color:var(--muted);text-transform:uppercase;margin-bottom:6px;}
+  .field input, .field select{width:100%;padding:11px 12px;border:1px solid var(--border);border-radius:6px;font-size:14.5px;font-family:inherit;background:var(--bg);}
+  .field input:focus, .field select:focus{outline:2px solid var(--marigold-500);outline-offset:1px;}
+  .hint{color:var(--muted);font-size:12.5px;margin:-8px 0 16px;}
+
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--teal-800);color:#fff;border:none;padding:12px 18px;border-radius:6px;font-weight:700;font-size:14.5px;cursor:pointer;font-family:inherit;}
+  .btn:hover{background:var(--teal-700);}
+  .btn.gold{background:var(--marigold-500);color:var(--teal-900);}
+  .btn.gold:hover{background:var(--marigold-300);}
+  .btn.ghost{background:transparent;color:var(--teal-800);border:1px solid var(--border);}
+  .btn-block{width:100%;}
+  .btn:disabled{opacity:.55;cursor:default;}
+
+  .error-msg{background:var(--plum-bg);color:var(--plum);border:1px solid #ecc9d3;padding:10px 12px;border-radius:6px;font-size:13.5px;margin-bottom:16px;}
+  .success-msg{background:var(--sage-bg);color:var(--sage);border:1px solid #cfe4d4;padding:10px 12px;border-radius:6px;font-size:13.5px;margin-bottom:16px;}
+
+  .member-card{background:var(--teal-900);color:#fff;border-radius:14px;padding:22px 20px;text-align:center;margin-bottom:18px;position:relative;overflow:hidden;}
+  .member-card .mc-org{font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--marigold-300);}
+  .member-card .mc-name{font-size:21px;margin:4px 0 2px;font-family:'Newsreader',serif;}
+  .member-card .mc-id{color:#c3d6cc;font-size:13px;letter-spacing:.04em;}
+  .member-card canvas{background:#fff;padding:10px;border-radius:8px;margin:16px auto 6px;display:block;}
+  .member-card .mc-note{color:#a9c2b6;font-size:11.5px;margin-top:6px;}
+
+  .badge{display:inline-block;padding:3px 10px;border-radius:10px;font-size:11.5px;font-weight:700;}
+  .badge.ok{background:var(--sage-bg);color:var(--sage);}
+  .badge.pending{background:var(--amber-bg);color:var(--amber);}
+  .badge.bad{background:var(--plum-bg);color:var(--plum);}
+
+  .section-label{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:800;margin:0 0 10px;}
+  .family-row{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--border);}
+  .family-row:last-child{border-bottom:none;}
+  .family-row input[type=checkbox]{width:18px;height:18px;accent-color:var(--marigold-500);}
+
+  .event-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:10px;cursor:pointer;}
+  .event-card.selected{border-color:var(--marigold-500);background:var(--marigold-100);}
+  .event-card .ev-name{font-weight:700;color:var(--teal-900);font-size:15px;}
+  .event-card .ev-meta{color:var(--muted);font-size:12.5px;margin-top:2px;}
+
+  .booking-row{display:flex;justify-content:space-between;align-items:center;padding:11px 0;border-bottom:1px solid var(--border);}
+  .booking-row:last-child{border-bottom:none;}
+  .booking-row .b-name{font-weight:600;font-size:13.5px;}
+  .booking-row .b-meta{color:var(--muted);font-size:12px;}
+
+  .empty-state{text-align:center;padding:30px 20px;color:var(--muted);font-size:13.5px;}
+  .link-btn{background:none;border:none;color:var(--teal-700);font-weight:700;font-size:13.5px;cursor:pointer;padding:0;font-family:inherit;}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
+
+/* ============================================================
+   CONFIG — same Apps Script /exec URL as the committee dashboard
+   ============================================================ */
+const API_URL = "PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE";
+
+let jsonpCounter = 0;
+function jsonpRequest(params) {
+  return new Promise((resolve, reject) => {
+    const cbName = "ggnzPortalCb_" + (jsonpCounter++) + "_" + Date.now();
+    const script = document.createElement("script");
+    const cleanup = () => { delete window[cbName]; document.body.removeChild(script); };
+    window[cbName] = (data) => { cleanup(); resolve(data); };
+    const qs = Object.keys(params).map(k => encodeURIComponent(k) + "=" + encodeURIComponent(params[k])).join("&");
+    script.src = API_URL + "?callback=" + cbName + "&" + qs;
+    script.onerror = () => { cleanup(); reject(new Error("Network error contacting the API")); };
+    document.body.appendChild(script);
+  });
+}
+async function api(action, params) {
+  if (!API_URL || API_URL.indexOf("PASTE_YOUR") === 0) {
+    throw new Error("API not configured yet — the organizer needs to set API_URL in this file.");
+  }
+  const result = await jsonpRequest(Object.assign({ action }, params || {}));
+  if (!result.ok) throw new Error(result.error || "Something went wrong");
+  return result;
+}
+
+function StatusBadge({ status }) {
+  const s = (status || "").toLowerCase();
+  const cls = ["confirmed","paid","active"].includes(s) ? "ok" : s === "pending" ? "pending" : "bad";
+  return <span className={"badge " + cls}>{status || "\u2014"}</span>;
+}
+function formatDate(d) {
+  if (!d) return "\u2014";
+  const parsed = new Date(d);
+  if (isNaN(parsed)) return "\u2014";
+  return parsed.toLocaleDateString("en-NZ", { day:"numeric", month:"short", year:"numeric" });
+}
+
+/* ============================================================
+   LOOKUP SCREEN
+   ============================================================ */
+function LookupScreen({ onFound }) {
+  const [query, setQuery] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setError(""); setLoading(true);
+    try {
+      const res = await api("memberLookup", { query });
+      onFound(res.data, res.data.member.MemberID);
+    } catch (err) { setError(err.message); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <div className="content">
+      <div className="card">
+        <h3 style={{marginTop:0}}>Find your membership</h3>
+        {error && <div className="error-msg">{error}</div>}
+        <form onSubmit={submit}>
+          <div className="field">
+            <label>Member ID or mobile number</label>
+            <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="e.g. GGNZ-0001 or 021 234 5678" required autoFocus />
+          </div>
+          <button className="btn gold btn-block" type="submit" disabled={loading}>
+            {loading ? "Looking up\u2026" : "Find my membership"}
+          </button>
+        </form>
+      </div>
+      <p style={{textAlign:"center",color:"var(--muted)",fontSize:12.5}}>
+        Don't know your Member ID? Just use your mobile number instead.
+      </p>
+    </div>
+  );
+}
+
+/* ============================================================
+   QR CODE
+   ============================================================ */
+function MemberQR({ value }) {
+  const canvasRef = useRef(null);
+  useEffect(() => {
+    if (canvasRef.current && window.QRCode) {
+      window.QRCode.toCanvas(canvasRef.current, value, { width: 168, margin: 1, color: { dark: "#0d332e" } });
+    }
+  }, [value]);
+  return <canvas ref={canvasRef}></canvas>;
+}
+
+/* ============================================================
+   MEMBER HOME — card, RSVP, booking history
+   ============================================================ */
+function MemberHome({ data, memberId, onSignOut }) {
+  const [tab, setTab] = useState("card"); // card | rsvp | bookings
+  const { member, family } = data;
+
+  return (
+    <div className="content">
+      <div className="member-card">
+        <div className="mc-org">GGNZ Membership</div>
+        <div className="mc-name">{member.Name}</div>
+        <div className="mc-id">{member.MemberID}</div>
+        <MemberQR value={member.MemberID} />
+        <div className="mc-note">Show this at check-in</div>
+      </div>
+
+      <div className="card" style={{display:"flex",justifyContent:"space-around",padding:10,marginBottom:16}}>
+        <button className="link-btn" style={tab==="card"?{color:"var(--marigold-600)"}:{}} onClick={()=>setTab("card")}>Details</button>
+        <button className="link-btn" style={tab==="rsvp"?{color:"var(--marigold-600)"}:{}} onClick={()=>setTab("rsvp")}>RSVP</button>
+        <button className="link-btn" style={tab==="bookings"?{color:"var(--marigold-600)"}:{}} onClick={()=>setTab("bookings")}>My bookings</button>
+      </div>
+
+      {tab === "card" && <DetailsTab member={member} family={family} />}
+      {tab === "rsvp" && <RsvpTab member={member} family={family} />}
+      {tab === "bookings" && <BookingsTab memberId={memberId} />}
+
+      <button className="btn ghost btn-block" style={{marginTop:20}} onClick={onSignOut}>Look up someone else</button>
+    </div>
+  );
+}
+
+function DetailsTab({ member, family }) {
+  return (
+    <div className="card">
+      <div className="section-label">Membership</div>
+      <div style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:"1px solid var(--border)"}}>
+        <span>Dues status</span><StatusBadge status={member.DuesStatus} />
+      </div>
+      <div style={{display:"flex",justifyContent:"space-between",padding:"8px 0"}}>
+        <span>Meal plan</span><strong>{member.MealPlan || "\u2014"}</strong>
+      </div>
+      {family.length > 0 && (
+        <React.Fragment>
+          <div className="section-label" style={{marginTop:18}}>Family members</div>
+          {family.map(f => (
+            <div key={f.MemberID} className="family-row">
+              <div><strong>{f.Name}</strong><div style={{color:"var(--muted)",fontSize:12}}>{f.MemberID} \u00b7 DOB {formatDate(f.DOB)}</div></div>
+            </div>
+          ))}
+        </React.Fragment>
+      )}
+    </div>
+  );
+}
+
+function RsvpTab({ member, family }) {
+  const [events, setEvents] = useState(null);
+  const [error, setError] = useState("");
+  const [success, setSuccess] = useState("");
+  const [selectedEvent, setSelectedEvent] = useState(null);
+  const [attendees, setAttendees] = useState({}); // MemberID -> boolean
+  const [meal, setMeal] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+
+  const everyone = [{ MemberID: member.MemberID, Name: member.Name }, ...family];
+
+  useEffect(() => {
+    api("publicEvents", {}).then(r => setEvents(r.data)).catch(e => setError(e.message));
+  }, []);
+
+  const toggle = (id) => setAttendees({ ...attendees, [id]: !attendees[id] });
+
+  const submit = async () => {
+    setError(""); setSuccess("");
+    const party = everyone.filter(p => attendees[p.MemberID]);
+    if (!selectedEvent) { setError("Choose an event first."); return; }
+    if (party.length === 0) { setError("Select at least one attendee."); return; }
+    setSubmitting(true);
+    try {
+      for (const p of party) {
+        await api("publicBooking", { record: JSON.stringify({
+          EventID: selectedEvent.EventID, MemberID: p.MemberID, Name: p.Name, Party: 1, Meal: meal
+        }) });
+      }
+      setSuccess("RSVP sent! The committee will confirm it shortly.");
+      setAttendees({}); setSelectedEvent(null); setMeal("");
+    } catch (e) { setError(e.message); }
+    finally { setSubmitting(false); }
+  };
+
+  if (error && !events) return <div className="error-msg">{error}</div>;
+  if (!events) return <div className="empty-state">Loading events\u2026</div>;
+
+  return (
+    <div>
+      {success && <div className="success-msg">{success}</div>}
+      {error && <div className="error-msg">{error}</div>}
+
+      <div className="section-label">Choose an event</div>
+      {events.length === 0 ? (
+        <div className="empty-state">No events are open for RSVP right now — check back soon.</div>
+      ) : events.map(e => (
+        <div key={e.EventID} className={"event-card" + (selectedEvent && selectedEvent.EventID===e.EventID ? " selected" : "")} onClick={()=>setSelectedEvent(e)}>
+          <div className="ev-name">{e.Name}</div>
+          <div className="ev-meta">{formatDate(e.Date)} \u00b7 {e.Location || "Location TBC"}</div>
+        </div>
+      ))}
+
+      {selectedEvent && (
+        <div className="card" style={{marginTop:6}}>
+          <div className="section-label">Who's attending?</div>
+          {everyone.map(p => (
+            <div key={p.MemberID} className="family-row">
+              <input type="checkbox" checked={!!attendees[p.MemberID]} onChange={()=>toggle(p.MemberID)} id={"att-"+p.MemberID} />
+              <label htmlFor={"att-"+p.MemberID} style={{fontSize:14}}>{p.Name}</label>
+            </div>
+          ))}
+          <div className="field" style={{marginTop:16}}>
+            <label>Meal preference</label>
+            <input value={meal} onChange={e=>setMeal(e.target.value)} placeholder="e.g. Standard, Jain, none" />
+          </div>
+          <button className="btn gold btn-block" onClick={submit} disabled={submitting}>
+            {submitting ? "Sending\u2026" : "Submit RSVP"}
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function BookingsTab({ memberId }) {
+  const [bookings, setBookings] = useState(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    api("memberBookings", { memberId }).then(r => setBookings(r.data)).catch(e => setError(e.message));
+  }, [memberId]);
+
+  if (error) return <div className="error-msg">{error}</div>;
+  if (!bookings) return <div className="empty-state">Loading\u2026</div>;
+
+  return (
+    <div className="card">
+      <div className="section-label">Your bookings</div>
+      {bookings.length === 0 ? <div className="empty-state">No bookings yet.</div> : bookings.map((b,i) => (
+        <div className="booking-row" key={i}>
+          <div><div className="b-name">{b.Name}</div><div className="b-meta">{b.EventID} \u00b7 {b.Meal || "No meal noted"}</div></div>
+          <StatusBadge status={b.Status} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/* ============================================================
+   ROOT
+   ============================================================ */
+function App() {
+  const [session, setSession] = useState(null); // { data, memberId }
+
+  return (
+    <div className="wrap">
+      <div className="hero">
+        <div className="org">Garvi Gujarat NZ</div>
+        <h1>Membership Portal</h1>
+        <p>Your card, your RSVPs, all in one place</p>
+      </div>
+      <div className="scallop"></div>
+      {!session ? (
+        <LookupScreen onFound={(data, memberId) => setSession({ data, memberId })} />
+      ) : (
+        <MemberHome data={session.data} memberId={session.memberId} onSignOut={() => setSession(null)} />
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
