@@ -400,7 +400,12 @@ function ApiErrorPanel({ message }) {
     </div>
   );
 }
-function formatDate(d) { try { return new Date(d).toLocaleDateString("en-NZ", { day:"numeric", month:"short", year:"numeric" }); } catch(e) { return d; } }
+function formatDate(d) {
+  if (!d) return "\u2014";
+  const parsed = new Date(d);
+  if (isNaN(parsed)) return "\u2014";
+  return parsed.toLocaleDateString("en-NZ", { day:"numeric", month:"short", year:"numeric" });
+}
 
 /* ============================================================
    DASHBOARD
@@ -495,7 +500,19 @@ function Membership({ token }) {
     return rows.filter(r => (r.Name||"").toLowerCase().includes(q) || (r.MemberID||"").toLowerCase().includes(q) || (r.Email||"").toLowerCase().includes(q));
   }, [rows, search]);
 
-  const save = async (record) => { await api("saveMember", { record: JSON.stringify(record) }, token); setEditing(null); load(); };
+  const save = async (form, familyMembers) => {
+    const primary = await api("saveMember", { record: JSON.stringify(form) }, token);
+    const primaryId = primary.data.MemberID;
+    for (const fam of familyMembers) {
+      if (!fam.Name.trim()) continue;
+      await api("saveMember", { record: JSON.stringify({
+        Name: fam.Name, DOB: fam.DOB, Email: fam.Email, Phone: fam.Phone,
+        FamilyGroup: primaryId, DuesStatus: form.DuesStatus, MealPlan: form.MealPlan
+      }) }, token);
+    }
+    setEditing(null);
+    load();
+  };
   const remove = async (id) => { if (!confirm("Remove this member?")) return; await api("deleteMember", { id }, token); load(); };
 
   if (error) return <ApiErrorPanel message={error} />;
@@ -510,20 +527,29 @@ function Membership({ token }) {
       <div className="list-card"><div className="scroll-x">
         {filtered.length === 0 ? <EmptyRow text="No members found" /> : (
           <table>
-            <thead><tr><th>ID</th><th>Name</th><th>Contact</th><th>Dues</th><th></th></tr></thead>
+            <thead><tr><th>ID</th><th>Name</th><th>DOB</th><th>Contact</th><th>Meal plan</th><th>Dues</th><th></th></tr></thead>
             <tbody>
-              {filtered.map(m => (
-                <tr key={m.MemberID}>
-                  <td>{m.MemberID}</td>
-                  <td>{m.Name}</td>
-                  <td>{m.Email}<br/><span style={{color:"var(--muted)",fontSize:12}}>{m.Phone}</span></td>
-                  <td><StatusBadge status={m.DuesStatus} /></td>
-                  <td style={{whiteSpace:"nowrap"}}>
-                    <button className="btn ghost sm" style={{marginRight:6}} onClick={()=>setEditing(m)}>Edit</button>
-                    <button className="btn danger sm" onClick={()=>remove(m.MemberID)}>Remove</button>
-                  </td>
-                </tr>
-              ))}
+              {filtered.map(m => {
+                const dependents = rows.filter(r => r.FamilyGroup === m.MemberID);
+                return (
+                  <tr key={m.MemberID}>
+                    <td>{m.MemberID}</td>
+                    <td>
+                      {m.Name}
+                      {m.FamilyGroup && <div style={{color:"var(--muted)",fontSize:11.5}}>Family of {m.FamilyGroup}</div>}
+                      {!m.FamilyGroup && dependents.length > 0 && <div style={{color:"var(--muted)",fontSize:11.5}}>+{dependents.length} family member{dependents.length===1?"":"s"}</div>}
+                    </td>
+                    <td>{formatDate(m.DOB)}</td>
+                    <td>{m.Email}<br/><span style={{color:"var(--muted)",fontSize:12}}>{m.Phone}</span></td>
+                    <td>{m.MealPlan || "\u2014"}</td>
+                    <td><StatusBadge status={m.DuesStatus} /></td>
+                    <td style={{whiteSpace:"nowrap"}}>
+                      <button className="btn ghost sm" style={{marginRight:6}} onClick={()=>setEditing(m)}>Edit</button>
+                      <button className="btn danger sm" onClick={()=>remove(m.MemberID)}>Remove</button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}
@@ -533,31 +559,77 @@ function Membership({ token }) {
   );
 }
 
+const MEAL_PLAN_OPTIONS = ["Yearly", "Half-Yearly", "Monthly", "Per Event", "Not applicable"];
+
 function MemberModal({ record, onClose, onSave }) {
+  const isNew = !record.MemberID;
   const [form, setForm] = useState({
-    MemberID: record.MemberID || "", Name: record.Name || "", Email: record.Email || "",
-    Phone: record.Phone || "", FamilyGroup: record.FamilyGroup || "",
-    DuesStatus: record.DuesStatus || "Pending", Notes: record.Notes || ""
+    MemberID: record.MemberID || "", Name: record.Name || "", DOB: record.DOB ? String(record.DOB).slice(0,10) : "",
+    Email: record.Email || "", Phone: record.Phone || "", FamilyGroup: record.FamilyGroup || "",
+    DuesStatus: record.DuesStatus || "Pending", MealPlan: record.MealPlan || "Yearly", Notes: record.Notes || ""
   });
+  const [familyMembers, setFamilyMembers] = useState([]);
   const set = k => e => setForm({ ...form, [k]: e.target.value });
+
+  const addFamilyRow = () => setFamilyMembers([...familyMembers, { Name:"", DOB:"", Email:"", Phone:"" }]);
+  const updateFamilyRow = (i, k, v) => {
+    const next = [...familyMembers];
+    next[i] = { ...next[i], [k]: v };
+    setFamilyMembers(next);
+  };
+  const removeFamilyRow = (i) => setFamilyMembers(familyMembers.filter((_, idx) => idx !== i));
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={e=>e.stopPropagation()}>
         <h3>{record.MemberID ? "Edit member" : "Add member"}</h3>
         <div className="field"><label>Name</label><input value={form.Name} onChange={set("Name")} /></div>
+        <div className="field"><label>Date of birth</label><input type="date" value={form.DOB} onChange={set("DOB")} /></div>
         <div className="field"><label>Email</label><input value={form.Email} onChange={set("Email")} /></div>
         <div className="field"><label>Phone</label><input value={form.Phone} onChange={set("Phone")} /></div>
-        <div className="field"><label>Family group (primary member's ID)</label><input value={form.FamilyGroup} onChange={set("FamilyGroup")} /></div>
         <div className="field">
-          <label>Dues status</label>
+          <label>Membership dues (annual)</label>
           <select value={form.DuesStatus} onChange={set("DuesStatus")}>
             <option>Paid</option><option>Pending</option><option>Overdue</option>
           </select>
         </div>
+        <div className="field">
+          <label>Meal payment plan</label>
+          <select value={form.MealPlan} onChange={set("MealPlan")}>
+            {MEAL_PLAN_OPTIONS.map(o => <option key={o}>{o}</option>)}
+          </select>
+        </div>
         <div className="field"><label>Notes</label><input value={form.Notes} onChange={set("Notes")} /></div>
+
+        {isNew && (
+          <div style={{marginTop:20, paddingTop:16, borderTop:"1px solid var(--border)"}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+              <div className="section-label" style={{margin:0}}>Family members (optional)</div>
+              <button className="btn ghost sm" type="button" onClick={addFamilyRow}>+ Add</button>
+            </div>
+            {familyMembers.length === 0 && (
+              <p style={{color:"var(--muted)",fontSize:12.5,margin:"0 0 8px"}}>Add spouse, children, or other household members here — they'll share this member's dues and meal plan.</p>
+            )}
+            {familyMembers.map((fam, i) => (
+              <div key={i} style={{border:"1px solid var(--border)",borderRadius:6,padding:10,marginBottom:8,position:"relative"}}>
+                <button type="button" onClick={()=>removeFamilyRow(i)} aria-label="Remove"
+                  style={{position:"absolute",top:6,right:6,background:"none",border:"none",color:"var(--muted)",cursor:"pointer",fontSize:13}}>&#10005;</button>
+                <div className="field" style={{marginBottom:8}}>
+                  <label>Name</label>
+                  <input value={fam.Name} onChange={e=>updateFamilyRow(i,"Name",e.target.value)} />
+                </div>
+                <div className="field" style={{marginBottom:0}}>
+                  <label>Date of birth</label>
+                  <input type="date" value={fam.DOB} onChange={e=>updateFamilyRow(i,"DOB",e.target.value)} />
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
         <div className="row-actions">
           <button className="btn ghost" onClick={onClose}>Cancel</button>
-          <button className="btn gold" onClick={()=>onSave(form)}>Save</button>
+          <button className="btn gold" onClick={()=>onSave(form, familyMembers)}>Save</button>
         </div>
       </div>
     </div>
