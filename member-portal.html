@@ -11,7 +11,6 @@
 <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.4/build/qrcode.min.js"></script>
 
 <style>
   :root{
@@ -173,13 +172,17 @@ function LookupScreen({ onFound }) {
    QR CODE
    ============================================================ */
 function MemberQR({ value }) {
-  const canvasRef = useRef(null);
-  useEffect(() => {
-    if (canvasRef.current && window.QRCode) {
-      window.QRCode.toCanvas(canvasRef.current, value, { width: 168, margin: 1, color: { dark: "#0d332e" } });
-    }
-  }, [value]);
-  return <canvas ref={canvasRef}></canvas>;
+  const [failed, setFailed] = useState(false);
+  const src = "https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=10&data=" + encodeURIComponent(value);
+  if (failed) {
+    return (
+      <div style={{width:168,height:168,margin:"16px auto 6px",background:"#fff",borderRadius:8,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",padding:10}}>
+        <div style={{color:"var(--teal-900)",fontWeight:700,fontSize:13}}>QR unavailable</div>
+        <div style={{color:"var(--muted)",fontSize:12,marginTop:4}}>Show Member ID instead:<br/><strong>{value}</strong></div>
+      </div>
+    );
+  }
+  return <img src={src} alt={"QR code for " + value} width="168" height="168" style={{background:"#fff",padding:10,borderRadius:8,margin:"16px auto 6px",display:"block"}} onError={()=>setFailed(true)} />;
 }
 
 /* ============================================================
@@ -229,7 +232,7 @@ function DetailsTab({ member, family }) {
           <div className="section-label" style={{marginTop:18}}>Family members</div>
           {family.map(f => (
             <div key={f.MemberID} className="family-row">
-              <div><strong>{f.Name}</strong><div style={{color:"var(--muted)",fontSize:12}}>{f.MemberID} \u00b7 DOB {formatDate(f.DOB)}</div></div>
+              <div><strong>{f.Name}</strong><div style={{color:"var(--muted)",fontSize:12}}>{f.MemberID}</div></div>
             </div>
           ))}
         </React.Fragment>
