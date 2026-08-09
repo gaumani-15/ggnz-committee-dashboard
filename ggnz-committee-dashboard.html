@@ -1,0 +1,1132 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>GGNZ Committee</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600;6..72,700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+
+<style>
+  :root{
+    --teal-900:#0d332e;
+    --teal-800:#123f38;
+    --teal-700:#14493f;
+    --teal-600:#19584b;
+    --teal-500:#1c6354;
+    --marigold-600:#c8891f;
+    --marigold-500:#dfa53a;
+    --marigold-300:#eec478;
+    --marigold-100:#faecc9;
+    --bg:#eef4f0;
+    --card:#ffffff;
+    --ink:#1b2b26;
+    --muted:#66756e;
+    --border:#d9e3dc;
+    --plum:#7a2e46;
+    --plum-bg:#f7e9ee;
+    --sage:#3f7a52;
+    --sage-bg:#e7f1e9;
+    --amber:#95651a;
+    --amber-bg:#faf0dc;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:'Manrope',sans-serif;}
+  h1,h2,h3,.display{font-family:'Newsreader',serif;}
+
+  /* Signature scallop motif */
+  .scallop{
+    height:13px;
+    background: radial-gradient(circle at 10px 0, transparent 9px, var(--marigold-500) 9.5px) 0 -1px/20px 13px repeat-x;
+  }
+  .scallop.dark{
+    background: radial-gradient(circle at 10px 0, transparent 9px, var(--teal-900) 9.5px) 0 -1px/20px 13px repeat-x;
+  }
+
+  /* --- Login --- */
+  .login-wrap{min-height:100vh;display:flex;align-items:center;justify-content:center;background:
+    radial-gradient(circle at 15% 10%, var(--teal-600), var(--teal-900) 65%);padding:20px;}
+  .login-card{background:var(--card);border-radius:6px;overflow:hidden;width:380px;max-width:100%;box-shadow:0 24px 60px rgba(0,0,0,0.35);}
+  .login-body{padding:34px 30px;}
+  .login-body h1{font-size:27px;margin:0 0 4px;color:var(--teal-900);}
+  .login-body p.sub{color:var(--muted);margin:0 0 24px;font-size:14px;}
+  .field{margin-bottom:16px;}
+  .field label{display:block;font-size:12px;font-weight:700;letter-spacing:0.03em;color:var(--muted);text-transform:uppercase;margin-bottom:6px;}
+  .field input, .field select{width:100%;padding:10px 12px;border:1px solid var(--border);border-radius:4px;font-size:14px;font-family:inherit;background:var(--bg);}
+  .field input:focus, .field select:focus{outline:2px solid var(--marigold-500);outline-offset:1px;}
+  .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;background:var(--teal-800);color:#fff;border:none;padding:11px 18px;border-radius:4px;font-weight:700;font-size:14px;cursor:pointer;font-family:inherit;}
+  .btn:hover{background:var(--teal-700);}
+  .btn:focus-visible{outline:2px solid var(--marigold-500);outline-offset:2px;}
+  .btn.gold{background:var(--marigold-500);color:var(--teal-900);}
+  .btn.gold:hover{background:var(--marigold-300);}
+  .btn.ghost{background:transparent;color:var(--teal-800);border:1px solid var(--border);}
+  .btn.danger{background:var(--plum);}
+  .btn.sm{padding:6px 11px;font-size:12px;}
+  .btn-block{width:100%;}
+  .error-msg{background:var(--plum-bg);color:var(--plum);border:1px solid #ecc9d3;padding:9px 12px;border-radius:4px;font-size:13px;margin-bottom:16px;}
+
+  /* --- App shell --- */
+  .app{display:flex;flex-direction:column;min-height:100vh;max-width:520px;margin:0 auto;background:var(--bg);position:relative;}
+  @media (min-width:900px){ body{background:var(--teal-900);} .app{box-shadow:0 0 50px rgba(0,0,0,0.25);} }
+
+  .topbar{background:var(--teal-900);color:#fff;padding:14px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:20;}
+  .topbar .tb-left{display:flex;align-items:center;gap:12px;}
+  .icon-btn{background:none;border:none;color:#fff;font-size:19px;cursor:pointer;padding:4px 6px;border-radius:4px;line-height:1;}
+  .icon-btn:hover{background:var(--teal-700);}
+  .icon-btn:focus-visible{outline:2px solid var(--marigold-500);outline-offset:1px;}
+  .topbar .brand{font-family:'Newsreader',serif;font-size:19px;letter-spacing:.02em;}
+  .topbar .tb-right{display:flex;align-items:center;gap:4px;}
+  .badge-dot{position:relative;}
+  .badge-dot::after{content:"";position:absolute;top:5px;right:6px;width:7px;height:7px;border-radius:50%;background:var(--marigold-500);border:1.5px solid var(--teal-900);}
+
+  .content{padding:20px 16px 90px;flex:1;overflow-y:auto;}
+  .page-title{margin:2px 0 18px;}
+  .page-title h2{margin:0;font-size:21px;color:var(--teal-900);}
+  .page-title .subtitle{color:var(--muted);font-size:13px;margin-top:2px;}
+
+  /* Drawer */
+  .drawer-overlay{position:fixed;inset:0;background:rgba(13,51,46,0.45);z-index:40;}
+  .drawer{position:fixed;top:0;left:0;bottom:0;width:270px;max-width:82vw;background:var(--teal-900);color:#e9f1ec;z-index:41;display:flex;flex-direction:column;box-shadow:6px 0 24px rgba(0,0,0,0.25);}
+  .drawer-header{padding:20px 20px 14px;}
+  .drawer-header .org{font-size:11px;letter-spacing:0.12em;text-transform:uppercase;color:var(--marigold-300);margin-bottom:2px;}
+  .drawer-header h1{font-size:20px;margin:0;color:#fff;}
+  .drawer-nav{flex:1;padding:10px 10px;overflow-y:auto;}
+  .nav-item{display:flex;align-items:center;gap:10px;padding:11px 12px;border-radius:4px;color:#c3d6cc;cursor:pointer;font-size:14.5px;font-weight:600;margin-bottom:2px;transition:background .12s;}
+  .nav-item:hover{background:var(--teal-700);color:#fff;}
+  .nav-item.active{background:var(--teal-600);color:#fff;box-shadow:inset 3px 0 0 var(--marigold-500);}
+  .nav-icon{width:20px;text-align:center;}
+  .drawer-footer{padding:16px 20px;border-top:1px solid var(--teal-700);}
+  .who{font-size:13px;color:#c3d6cc;margin-bottom:8px;}
+  .who .role{display:inline-block;background:var(--teal-700);color:var(--marigold-300);font-size:10px;padding:2px 8px;border-radius:10px;text-transform:uppercase;letter-spacing:.04em;margin-left:6px;}
+
+  /* Bottom tabs */
+  .bottom-tabs{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:520px;background:var(--teal-900);display:flex;justify-content:space-around;align-items:center;padding:9px 4px 12px;z-index:20;box-shadow:0 -4px 16px rgba(0,0,0,0.15);}
+  .tab-item{background:none;border:none;color:#8bab9c;display:flex;flex-direction:column;align-items:center;gap:3px;font-size:10.5px;cursor:pointer;padding:4px 10px;border-radius:6px;font-family:inherit;font-weight:600;}
+  .tab-item .t-icon{font-size:19px;}
+  .tab-item.active{color:var(--marigold-300);}
+  .tab-item:focus-visible{outline:2px solid var(--marigold-500);}
+
+  /* Dashboard */
+  .greeting h2{margin:0 0 2px;font-size:23px;color:var(--teal-900);}
+  .greeting .date-line{color:var(--muted);font-size:13.5px;display:flex;align-items:center;gap:6px;margin-bottom:20px;}
+
+  .stat-list{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;margin-bottom:22px;}
+  .stat-row{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border);}
+  .stat-row:last-child{border-bottom:none;}
+  .stat-row .sr-left{display:flex;align-items:center;gap:12px;font-size:14.5px;color:var(--ink);}
+  .stat-row .sr-icon{font-size:18px;width:22px;text-align:center;}
+  .stat-row .sr-value{font-family:'Newsreader',serif;font-size:19px;color:var(--teal-900);font-weight:700;}
+
+  .section-label{font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);font-weight:800;margin:0 0 10px;}
+  .qa-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:24px;}
+  .qa-btn{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 12px;text-align:left;cursor:pointer;font-family:inherit;display:flex;flex-direction:column;gap:8px;}
+  .qa-btn:hover{border-color:var(--marigold-500);background:var(--marigold-100);}
+  .qa-btn .qa-icon{font-size:20px;}
+  .qa-btn .qa-label{font-size:13.5px;font-weight:700;color:var(--teal-900);}
+
+  .event-card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;}
+  .event-card .ev-name{font-weight:700;color:var(--teal-900);font-size:14.5px;}
+  .event-card .ev-meta{color:var(--muted);font-size:12.5px;margin-top:2px;}
+
+  /* Generic cards & tables */
+  .card{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:18px;}
+  table{width:100%;border-collapse:collapse;font-size:13px;}
+  th{text-align:left;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);padding:9px 10px;border-bottom:2px solid var(--border);}
+  td{padding:10px;border-bottom:1px solid var(--border);}
+  tr:hover td{background:#f6f9f6;}
+  .badge{display:inline-block;padding:2px 9px;border-radius:10px;font-size:11px;font-weight:700;}
+  .badge.ok{background:var(--sage-bg);color:var(--sage);}
+  .badge.pending{background:var(--amber-bg);color:var(--amber);}
+  .badge.bad{background:var(--plum-bg);color:var(--plum);}
+
+  .toolbar{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;gap:10px;flex-wrap:wrap;}
+  .toolbar input[type=text], .toolbar input[type=search]{padding:9px 12px;border:1px solid var(--border);border-radius:4px;font-family:inherit;font-size:13px;flex:1;min-width:140px;}
+  .list-card{background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;}
+  .list-card .scroll-x{overflow-x:auto;}
+
+  .modal-overlay{position:fixed;inset:0;background:rgba(13,51,46,0.5);display:flex;align-items:center;justify-content:center;z-index:50;padding:16px;}
+  .modal{background:#fff;border-radius:8px;width:440px;max-width:100%;max-height:88vh;overflow-y:auto;padding:24px;}
+  .modal h3{margin:0 0 16px;color:var(--teal-900);}
+  .modal .row-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:20px;}
+
+  .empty-state{text-align:center;padding:50px 20px;color:var(--muted);}
+  .empty-state .icon{font-size:32px;margin-bottom:10px;}
+
+  .stub-panel{background:var(--card);border:1px dashed var(--border);border-radius:10px;padding:40px 24px;text-align:center;color:var(--muted);}
+  .stub-panel .icon{font-size:30px;margin-bottom:12px;}
+  .stub-panel code{background:var(--bg);padding:2px 6px;border-radius:3px;font-size:12px;}
+
+  .checkin-hero{background:var(--teal-900);color:#fff;border-radius:12px;padding:24px 20px;text-align:center;margin-bottom:18px;}
+  .checkin-hero .icon{font-size:34px;margin-bottom:8px;}
+  .checkin-hero p{color:#c3d6cc;font-size:13px;margin:4px 0 0;}
+
+  a{color:var(--teal-700);}
+  ::-webkit-scrollbar{width:9px;height:9px;}
+  ::-webkit-scrollbar-thumb{background:#c7d6cc;border-radius:5px;}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script type="text/babel">
+const { useState, useEffect, useCallback, useMemo, useRef } = React;
+
+/* ============================================================
+   CONFIG — set this to your deployed Apps Script /exec URL
+   ============================================================ */
+const API_URL = "PASTE_YOUR_APPS_SCRIPT_WEB_APP_URL_HERE";
+
+/* ---------------- JSONP helper ---------------- */
+let jsonpCounter = 0;
+function jsonpRequest(params) {
+  return new Promise((resolve, reject) => {
+    const cbName = "ggnzCb_" + (jsonpCounter++) + "_" + Date.now();
+    const script = document.createElement("script");
+    const cleanup = () => { delete window[cbName]; document.body.removeChild(script); };
+    window[cbName] = (data) => { cleanup(); resolve(data); };
+    const qs = Object.keys(params).map(k => encodeURIComponent(k) + "=" + encodeURIComponent(params[k])).join("&");
+    script.src = API_URL + "?callback=" + cbName + "&" + qs;
+    script.onerror = () => { cleanup(); reject(new Error("Network error contacting the API")); };
+    document.body.appendChild(script);
+  });
+}
+
+async function api(action, params, token) {
+  if (!API_URL || API_URL.indexOf("PASTE_YOUR") === 0) {
+    throw new Error("API not configured yet — set API_URL at the top of the file.");
+  }
+  const result = await jsonpRequest(Object.assign({ action }, params || {}, token ? { token } : {}));
+  if (!result.ok) throw new Error(result.error || "Request failed");
+  return result;
+}
+
+/* ============================================================
+   NAV CONFIG
+   ============================================================ */
+const NAV_ITEMS = [
+  { key: "dashboard", label: "Dashboard", icon: "\u25A6" },
+  { key: "membership", label: "Membership", icon: "\uD83D\uDC65" },
+  { key: "events", label: "Events", icon: "\uD83C\uDF89" },
+  { key: "bookings", label: "Bookings", icon: "\uD83D\uDCDD" },
+  { key: "payments", label: "Payments", icon: "\uD83D\uDCB0" },
+  { key: "checkin", label: "QR Check-In", icon: "\uD83D\uDCF7" },
+  { key: "reports", label: "Reports", icon: "\uD83D\uDCCA" },
+  { key: "communications", label: "Communications", icon: "\uD83D\uDCE2" },
+  { key: "volunteers", label: "Volunteers", icon: "\uD83E\uDD1D" },
+  { key: "settings", label: "Settings", icon: "\u2699" }
+];
+
+const BOTTOM_TABS = [
+  { key: "dashboard", label: "Home", icon: "\uD83C\uDFE0" },
+  { key: "membership", label: "Members", icon: "\uD83D\uDC65" },
+  { key: "events", label: "Events", icon: "\uD83C\uDF89" },
+  { key: "checkin", label: "Check-in", icon: "\uD83D\uDCF7" },
+  { key: "settings", label: "Settings", icon: "\u2699" }
+];
+
+/* ============================================================
+   LOGIN
+   ============================================================ */
+function Login({ onLogin }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setError(""); setLoading(true);
+    try {
+      const res = await api("login", { email, password });
+      onLogin(res.token, res.user);
+    } catch (err) { setError(err.message); }
+    finally { setLoading(false); }
+  };
+
+  return (
+    <div className="login-wrap">
+      <div className="login-card">
+        <div className="scallop"></div>
+        <div className="login-body">
+          <h1>GGNZ Committee</h1>
+          <p className="sub">Sign in with your committee account</p>
+          {error && <div className="error-msg">{error}</div>}
+          <form onSubmit={submit}>
+            <div className="field">
+              <label htmlFor="email">Email</label>
+              <input id="email" type="email" value={email} onChange={e=>setEmail(e.target.value)} required autoFocus />
+            </div>
+            <div className="field">
+              <label htmlFor="password">Password</label>
+              <input id="password" type="password" value={password} onChange={e=>setPassword(e.target.value)} required />
+            </div>
+            <button className="btn gold btn-block" type="submit" disabled={loading}>
+              {loading ? "Signing in\u2026" : "Sign in"}
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   SHELL
+   ============================================================ */
+function Shell({ user, token, onLogout }) {
+  const [page, setPage] = useState("dashboard");
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const current = NAV_ITEMS.find(n => n.key === page);
+  const go = (key) => { setPage(key); setDrawerOpen(false); };
+
+  return (
+    <div className="app">
+      <div className="topbar">
+        <div className="tb-left">
+          <button className="icon-btn" aria-label="Open menu" onClick={()=>setDrawerOpen(true)}>&#9776;</button>
+          <span className="brand">GGNZ</span>
+        </div>
+        <div className="tb-right">
+          <button className="icon-btn badge-dot" aria-label="Notifications" title="No new notifications" onClick={()=>alert("No new notifications")}>&#128276;</button>
+          <button className="icon-btn" aria-label="Account" title={user.name} onClick={()=>{ if (confirm("Sign out of GGNZ Committee?")) onLogout(); }}>&#128100;</button>
+        </div>
+      </div>
+
+      {drawerOpen && (
+        <React.Fragment>
+          <div className="drawer-overlay" onClick={()=>setDrawerOpen(false)}></div>
+          <div className="drawer">
+            <div className="drawer-header"><div className="org">GGNZ</div><h1>Committee</h1></div>
+            <div className="scallop"></div>
+            <nav className="drawer-nav">
+              {NAV_ITEMS.map(item => (
+                <div key={item.key} className={"nav-item" + (page===item.key ? " active" : "")}
+                     onClick={()=>go(item.key)} role="button" tabIndex={0}
+                     onKeyDown={e=>{ if (e.key==="Enter") go(item.key); }}>
+                  <span className="nav-icon">{item.icon}</span><span>{item.label}</span>
+                </div>
+              ))}
+            </nav>
+            <div className="drawer-footer">
+              <div className="who">{user.name}<span className="role">{user.role}</span></div>
+              <button className="btn ghost btn-block" onClick={onLogout}>Sign out</button>
+            </div>
+          </div>
+        </React.Fragment>
+      )}
+
+      <div className="content">
+        {page !== "dashboard" && (
+          <div className="page-title"><h2>{current.label}</h2><div className="subtitle">{pageSubtitle(page)}</div></div>
+        )}
+        <Page page={page} token={token} user={user} onNavigate={go} />
+      </div>
+
+      <div className="bottom-tabs">
+        {BOTTOM_TABS.map(tab => (
+          <button key={tab.key} className={"tab-item" + (page===tab.key ? " active" : "")} onClick={()=>go(tab.key)}>
+            <span className="t-icon">{tab.icon}</span><span>{tab.label}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function pageSubtitle(page) {
+  const map = {
+    membership: "Manage member records, dues and renewals",
+    events: "Plan and manage upcoming GGNZ events",
+    bookings: "Track RSVPs and event bookings",
+    payments: "Record and review payments",
+    checkin: "Check members in at the door",
+    reports: "Trends across membership, events and finances",
+    communications: "Email and announcements to members",
+    volunteers: "Recruit and coordinate volunteers",
+    settings: "Organization, users and preferences"
+  };
+  return map[page] || "";
+}
+
+function Page({ page, token, user, onNavigate }) {
+  switch (page) {
+    case "dashboard": return <Dashboard token={token} user={user} onNavigate={onNavigate} />;
+    case "membership": return <Membership token={token} />;
+    case "events": return <Events token={token} />;
+    case "bookings": return <Bookings token={token} />;
+    case "payments": return <Payments token={token} />;
+    case "checkin": return <CheckIn token={token} />;
+    case "reports": return <Reports token={token} />;
+    case "communications": return <Stub icon="\uD83D\uDCE2" label="Communications" note="Ready to wire up once your email API key is set — this will send announcements and RSVP confirmations to members." />;
+    case "volunteers": return <Volunteers token={token} />;
+    case "settings": return <Settings token={token} user={user} />;
+    default: return null;
+  }
+}
+
+function Stub({ icon, label, note }) {
+  return (
+    <div className="stub-panel">
+      <div className="icon">{icon}</div>
+      <h3 style={{margin:"0 0 8px", color:"var(--teal-900)"}}>{label} \u2014 coming soon</h3>
+      <p style={{maxWidth:440, margin:"0 auto"}}>{note}</p>
+    </div>
+  );
+}
+
+/* ============================================================
+   Shared bits
+   ============================================================ */
+function StatusBadge({ status }) {
+  const s = (status || "").toLowerCase();
+  const cls = ["confirmed","paid","active","planned"].includes(s) ? "ok" : s === "pending" ? "pending" : "bad";
+  return <span className={"badge " + cls}>{status || "\u2014"}</span>;
+}
+function EmptyRow({ text }) { return <div className="empty-state"><div className="icon">\u2014</div>{text}</div>; }
+function LoadingPanel() { return <div className="empty-state">Loading\u2026</div>; }
+function ApiErrorPanel({ message }) {
+  return (
+    <div className="card" style={{borderColor:"var(--plum)"}}>
+      <strong style={{color:"var(--plum)"}}>Couldn't load data:</strong> {message}
+      {message.indexOf("API not configured") !== -1 && (
+        <p style={{marginTop:8, color:"var(--muted)"}}>Set <code>API_URL</code> at the top of this file to your Apps Script web app URL.</p>
+      )}
+    </div>
+  );
+}
+function formatDate(d) { try { return new Date(d).toLocaleDateString("en-NZ", { day:"numeric", month:"short", year:"numeric" }); } catch(e) { return d; } }
+
+/* ============================================================
+   DASHBOARD
+   ============================================================ */
+function greetingFor(hour) {
+  if (hour < 12) return "Good Morning";
+  if (hour < 18) return "Good Afternoon";
+  return "Good Evening";
+}
+
+function Dashboard({ token, user, onNavigate }) {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState("");
+  const now = useMemo(() => new Date(), []);
+  const firstName = (user.name || "").split(" ")[0];
+
+  useEffect(() => {
+    api("dashboardSummary", {}, token).then(r => setData(r.data)).catch(e => setError(e.message));
+  }, [token]);
+
+  return (
+    <div>
+      <div className="greeting">
+        <h2>{greetingFor(now.getHours())}, {firstName}</h2>
+        <div className="date-line"><span>\uD83D\uDCC5</span><span>Today: {now.toLocaleDateString("en-NZ", { day:"numeric", month:"long", year:"numeric" })}</span></div>
+      </div>
+
+      {error && <ApiErrorPanel message={error} />}
+      {!error && !data && <LoadingPanel />}
+
+      {data && (
+        <React.Fragment>
+          <div className="stat-list">
+            <StatRow icon="\uD83D\uDC65" label="Members" value={data.memberCount} />
+            <StatRow icon="\uD83C\uDF89" label="Upcoming Events" value={data.upcomingEventsCount} />
+            <StatRow icon="\uD83D\uDCDD" label="Bookings" value={data.bookingCount} />
+            <StatRow icon="\uD83D\uDCB0" label="Pending Payments" value={data.pendingPaymentsCount} />
+            <StatRow icon="\uD83D\uDCF7" label="Today's Check-ins" value={data.todayCheckins} />
+          </div>
+
+          <div className="section-label">Quick Actions</div>
+          <div className="qa-grid">
+            <QuickAction icon="\u2795" label="Add Member" onClick={()=>onNavigate("membership")} />
+            <QuickAction icon="\uD83C\uDF89" label="Create Event" onClick={()=>onNavigate("events")} />
+            <QuickAction icon="\uD83D\uDCF7" label="Start Check-in" onClick={()=>onNavigate("checkin")} />
+            <QuickAction icon="\uD83D\uDCCA" label="Reports" onClick={()=>onNavigate("reports")} />
+          </div>
+
+          {data.upcomingEvents && data.upcomingEvents.length > 0 && (
+            <React.Fragment>
+              <div className="section-label">Coming Up</div>
+              {data.upcomingEvents.map((e,i) => (
+                <div className="event-card" key={i}>
+                  <div>
+                    <div className="ev-name">{e.Name}</div>
+                    <div className="ev-meta">{formatDate(e.Date)} \u00b7 {e.Location || "Location TBC"}</div>
+                  </div>
+                  <StatusBadge status={e.Status} />
+                </div>
+              ))}
+            </React.Fragment>
+          )}
+        </React.Fragment>
+      )}
+    </div>
+  );
+}
+function StatRow({ icon, label, value }) {
+  return <div className="stat-row"><div className="sr-left"><span className="sr-icon">{icon}</span><span>{label}</span></div><div className="sr-value">{value}</div></div>;
+}
+function QuickAction({ icon, label, onClick }) {
+  return <button className="qa-btn" onClick={onClick}><span className="qa-icon">{icon}</span><span className="qa-label">{label}</span></button>;
+}
+
+/* ============================================================
+   MEMBERSHIP — full CRUD
+   ============================================================ */
+function Membership({ token }) {
+  const [rows, setRows] = useState(null);
+  const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
+  const [editing, setEditing] = useState(null);
+
+  const load = useCallback(() => {
+    api("listMembers", {}, token).then(r => setRows(r.data)).catch(e => setError(e.message));
+  }, [token]);
+  useEffect(load, [load]);
+
+  const filtered = useMemo(() => {
+    if (!rows) return [];
+    const q = search.toLowerCase();
+    return rows.filter(r => (r.Name||"").toLowerCase().includes(q) || (r.MemberID||"").toLowerCase().includes(q) || (r.Email||"").toLowerCase().includes(q));
+  }, [rows, search]);
+
+  const save = async (record) => { await api("saveMember", { record: JSON.stringify(record) }, token); setEditing(null); load(); };
+  const remove = async (id) => { if (!confirm("Remove this member?")) return; await api("deleteMember", { id }, token); load(); };
+
+  if (error) return <ApiErrorPanel message={error} />;
+  if (!rows) return <LoadingPanel />;
+
+  return (
+    <div>
+      <div className="toolbar">
+        <input type="search" placeholder="Search name, ID or email\u2026" value={search} onChange={e=>setSearch(e.target.value)} />
+        <button className="btn gold" onClick={()=>setEditing({})}>+ Add member</button>
+      </div>
+      <div className="list-card"><div className="scroll-x">
+        {filtered.length === 0 ? <EmptyRow text="No members found" /> : (
+          <table>
+            <thead><tr><th>ID</th><th>Name</th><th>Contact</th><th>Dues</th><th></th></tr></thead>
+            <tbody>
+              {filtered.map(m => (
+                <tr key={m.MemberID}>
+                  <td>{m.MemberID}</td>
+                  <td>{m.Name}</td>
+                  <td>{m.Email}<br/><span style={{color:"var(--muted)",fontSize:12}}>{m.Phone}</span></td>
+                  <td><StatusBadge status={m.DuesStatus} /></td>
+                  <td style={{whiteSpace:"nowrap"}}>
+                    <button className="btn ghost sm" style={{marginRight:6}} onClick={()=>setEditing(m)}>Edit</button>
+                    <button className="btn danger sm" onClick={()=>remove(m.MemberID)}>Remove</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div></div>
+      {editing !== null && <MemberModal record={editing} onClose={()=>setEditing(null)} onSave={save} />}
+    </div>
+  );
+}
+
+function MemberModal({ record, onClose, onSave }) {
+  const [form, setForm] = useState({
+    MemberID: record.MemberID || "", Name: record.Name || "", Email: record.Email || "",
+    Phone: record.Phone || "", FamilyGroup: record.FamilyGroup || "",
+    DuesStatus: record.DuesStatus || "Pending", Notes: record.Notes || ""
+  });
+  const set = k => e => setForm({ ...form, [k]: e.target.value });
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={e=>e.stopPropagation()}>
+        <h3>{record.MemberID ? "Edit member" : "Add member"}</h3>
+        <div className="field"><label>Name</label><input value={form.Name} onChange={set("Name")} /></div>
+        <div className="field"><label>Email</label><input value={form.Email} onChange={set("Email")} /></div>
+        <div className="field"><label>Phone</label><input value={form.Phone} onChange={set("Phone")} /></div>
+        <div className="field"><label>Family group (primary member's ID)</label><input value={form.FamilyGroup} onChange={set("FamilyGroup")} /></div>
+        <div className="field">
+          <label>Dues status</label>
+          <select value={form.DuesStatus} onChange={set("DuesStatus")}>
+            <option>Paid</option><option>Pending</option><option>Overdue</option>
+          </select>
+        </div>
+        <div className="field"><label>Notes</label><input value={form.Notes} onChange={set("Notes")} /></div>
+        <div className="row-actions">
+          <button className="btn ghost" onClick={onClose}>Cancel</button>
+          <button className="btn gold" onClick={()=>onSave(form)}>Save</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   EVENTS — full CRUD
+   ============================================================ */
+function Events({ token }) {
+  const [rows, setRows] = useState(null);
+  const [error, setError] = useState("");
+  const [editing, setEditing] = useState(null);
+
+  const load = useCallback(() => {
+    api("listEvents", {}, token).then(r => setRows(r.data)).catch(e => setError(e.message));
+  }, [token]);
+  useEffect(load, [load]);
+
+  const save = async (record) => { await api("saveEvent", { record: JSON.stringify(record) }, token); setEditing(null); load(); };
+  const remove = async (id) => { if (!confirm("Delete this event?")) return; await api("deleteEvent", { id }, token); load(); };
+
+  if (error) return <ApiErrorPanel message={error} />;
+  if (!rows) return <LoadingPanel />;
+
+  return (
+    <div>
+      <div className="toolbar">
+        <div style={{color:"var(--muted)",fontSize:13}}>{rows.length} event{rows.length===1?"":"s"}</div>
+        <button className="btn gold" onClick={()=>setEditing({})}>+ Create event</button>
+      </div>
+      {rows.length === 0 ? <EmptyRow text="No events yet" /> : rows.map(e => (
+        <div className="event-card" key={e.EventID}>
+          <div>
+            <div className="ev-name">{e.Name}</div>
+            <div className="ev-meta">{formatDate(e.Date)} \u00b7 {e.Location || "Location TBC"} \u00b7 Capacity {e.Capacity || "\u2014"}</div>
+          </div>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <StatusBadge status={e.Status} />
+            <button className="btn ghost sm" onClick={()=>setEditing(e)}>Edit</button>
+            <button className="btn danger sm" onClick={()=>remove(e.EventID)}>Delete</button>
+          </div>
+        </div>
+      ))}
+      {editing !== null && <EventModal record={editing} onClose={()=>setEditing(null)} onSave={save} />}
+    </div>
+  );
+}
+
+function EventModal({ record, onClose, onSave }) {
+  const [form, setForm] = useState({
+    EventID: record.EventID || "", Name: record.Name || "",
+    Date: record.Date ? String(record.Date).slice(0,10) : "",
+    Location: record.Location || "", Capacity: record.Capacity || "",
+    Description: record.Description || "", Status: record.Status || "Planned"
+  });
+  const set = k => e => setForm({ ...form, [k]: e.target.value });
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={e=>e.stopPropagation()}>
+        <h3>{record.EventID ? "Edit event" : "Create event"}</h3>
+        <div className="field"><label>Event name</label><input value={form.Name} onChange={set("Name")} /></div>
+        <div className="field"><label>Date</label><input type="date" value={form.Date} onChange={set("Date")} /></div>
+        <div className="field"><label>Location</label><input value={form.Location} onChange={set("Location")} /></div>
+        <div className="field"><label>Capacity</label><input type="number" value={form.Capacity} onChange={set("Capacity")} /></div>
+        <div className="field"><label>Description</label><input value={form.Description} onChange={set("Description")} /></div>
+        <div className="field">
+          <label>Status</label>
+          <select value={form.Status} onChange={set("Status")}>
+            <option>Planned</option><option>Open for RSVP</option><option>Completed</option><option>Cancelled</option>
+          </select>
+        </div>
+        <div className="row-actions">
+          <button className="btn ghost" onClick={onClose}>Cancel</button>
+          <button className="btn gold" onClick={()=>onSave(form)}>Save</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   BOOKINGS
+   ============================================================ */
+function Bookings({ token }) {
+  const [rows, setRows] = useState(null);
+  const [error, setError] = useState("");
+  const [editing, setEditing] = useState(null);
+
+  const load = useCallback(() => {
+    api("listBookings", {}, token).then(r => setRows(r.data)).catch(e => setError(e.message));
+  }, [token]);
+  useEffect(load, [load]);
+
+  const save = async (record) => { await api("saveBooking", { record: JSON.stringify(record) }, token); setEditing(null); load(); };
+  const remove = async (id) => { if (!confirm("Delete this booking?")) return; await api("deleteBooking", { id }, token); load(); };
+
+  if (error) return <ApiErrorPanel message={error} />;
+  if (!rows) return <LoadingPanel />;
+
+  return (
+    <div>
+      <div className="toolbar">
+        <div style={{color:"var(--muted)",fontSize:13}}>{rows.length} booking{rows.length===1?"":"s"}</div>
+        <button className="btn gold" onClick={()=>setEditing({})}>+ Add booking</button>
+      </div>
+      <div className="list-card"><div className="scroll-x">
+        {rows.length === 0 ? <EmptyRow text="No bookings yet" /> : (
+          <table>
+            <thead><tr><th>Name</th><th>Event</th><th>Member ID</th><th>Party</th><th>Meal</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+              {rows.map(b => (
+                <tr key={b.BookingID}>
+                  <td>{b.Name}</td><td>{b.EventID}</td><td>{b.MemberID}</td><td>{b.Party}</td><td>{b.Meal}</td>
+                  <td><StatusBadge status={b.Status} /></td>
+                  <td style={{whiteSpace:"nowrap"}}>
+                    <button className="btn ghost sm" style={{marginRight:6}} onClick={()=>setEditing(b)}>Edit</button>
+                    <button className="btn danger sm" onClick={()=>remove(b.BookingID)}>Delete</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div></div>
+      {editing !== null && <BookingModal record={editing} onClose={()=>setEditing(null)} onSave={save} />}
+    </div>
+  );
+}
+
+function BookingModal({ record, onClose, onSave }) {
+  const [form, setForm] = useState({
+    BookingID: record.BookingID || "", EventID: record.EventID || "", MemberID: record.MemberID || "",
+    Name: record.Name || "", Party: record.Party || 1, Meal: record.Meal || "", Status: record.Status || "Pending"
+  });
+  const set = k => e => setForm({ ...form, [k]: e.target.value });
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={e=>e.stopPropagation()}>
+        <h3>{record.BookingID ? "Edit booking" : "Add booking"}</h3>
+        <div className="field"><label>Name</label><input value={form.Name} onChange={set("Name")} /></div>
+        <div className="field"><label>Event ID</label><input value={form.EventID} onChange={set("EventID")} /></div>
+        <div className="field"><label>Member ID</label><input value={form.MemberID} onChange={set("MemberID")} placeholder="GGNZ-0001" /></div>
+        <div className="field"><label>Party size</label><input type="number" min="1" value={form.Party} onChange={set("Party")} /></div>
+        <div className="field"><label>Meal</label><input value={form.Meal} onChange={set("Meal")} /></div>
+        <div className="field">
+          <label>Status</label>
+          <select value={form.Status} onChange={set("Status")}>
+            <option>Pending</option><option>Confirmed</option><option>Cancelled</option>
+          </select>
+        </div>
+        <div className="row-actions">
+          <button className="btn ghost" onClick={onClose}>Cancel</button>
+          <button className="btn gold" onClick={()=>onSave(form)}>Save</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   PAYMENTS
+   ============================================================ */
+function Payments({ token }) {
+  const [rows, setRows] = useState(null);
+  const [error, setError] = useState("");
+  const [adding, setAdding] = useState(false);
+
+  const load = useCallback(() => {
+    api("listPayments", {}, token).then(r => setRows(r.data)).catch(e => setError(e.message));
+  }, [token]);
+  useEffect(load, [load]);
+
+  const save = async (record) => { await api("savePayment", { record: JSON.stringify(record) }, token); setAdding(false); load(); };
+
+  if (error) return <ApiErrorPanel message={error} />;
+  if (!rows) return <LoadingPanel />;
+
+  const total = rows.reduce((s,p)=> s + (parseFloat(p.Amount)||0), 0);
+
+  return (
+    <div>
+      <div className="toolbar">
+        <div style={{color:"var(--muted)",fontSize:13}}>{rows.length} payment{rows.length===1?"":"s"} \u00b7 ${total.toLocaleString()} total</div>
+        <button className="btn gold" onClick={()=>setAdding(true)}>+ Record payment</button>
+      </div>
+      <div className="list-card"><div className="scroll-x">
+        {rows.length === 0 ? <EmptyRow text="No payments yet" /> : (
+          <table>
+            <thead><tr><th>Date</th><th>Name</th><th>Amount</th><th>Method</th><th>For</th><th>Status</th></tr></thead>
+            <tbody>
+              {rows.map((p,i) => (
+                <tr key={i}>
+                  <td>{formatDate(p.Date)}</td><td>{p.Name}</td><td>${p.Amount}</td><td>{p.Method}</td><td>{p.For}</td>
+                  <td><StatusBadge status={p.Status} /></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div></div>
+      {adding && <PaymentModal onClose={()=>setAdding(false)} onSave={save} />}
+    </div>
+  );
+}
+
+function PaymentModal({ onClose, onSave }) {
+  const [form, setForm] = useState({ MemberID:"", Name:"", Amount:"", Method:"Cash", For:"", Status:"Paid" });
+  const set = k => e => setForm({ ...form, [k]: e.target.value });
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={e=>e.stopPropagation()}>
+        <h3>Record payment</h3>
+        <div className="field"><label>Name</label><input value={form.Name} onChange={set("Name")} /></div>
+        <div className="field"><label>Member ID</label><input value={form.MemberID} onChange={set("MemberID")} placeholder="GGNZ-0001" /></div>
+        <div className="field"><label>Amount ($)</label><input type="number" step="0.01" value={form.Amount} onChange={set("Amount")} /></div>
+        <div className="field">
+          <label>Method</label>
+          <select value={form.Method} onChange={set("Method")}>
+            <option>Cash</option><option>Bank transfer</option><option>Card</option><option>Other</option>
+          </select>
+        </div>
+        <div className="field"><label>For</label><input value={form.For} onChange={set("For")} placeholder="e.g. Annual dues, Event ticket" /></div>
+        <div className="row-actions">
+          <button className="btn ghost" onClick={onClose}>Cancel</button>
+          <button className="btn gold" onClick={()=>onSave(form)}>Save</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   CHECK-IN — search + manual check-in, camera scan where supported
+   ============================================================ */
+function CheckIn({ token }) {
+  const [query, setQuery] = useState("");
+  const [results, setResults] = useState([]);
+  const [recent, setRecent] = useState([]);
+  const [error, setError] = useState("");
+  const [scanning, setScanning] = useState(false);
+  const videoRef = useRef(null);
+  const streamRef = useRef(null);
+
+  const loadRecent = useCallback(() => {
+    api("listCheckins", {}, token).then(r => setRecent(r.data.slice(-8).reverse())).catch(()=>{});
+  }, [token]);
+  useEffect(loadRecent, [loadRecent]);
+
+  useEffect(() => {
+    if (!query.trim()) { setResults([]); return; }
+    const t = setTimeout(() => {
+      api("findMember", { query }, token).then(r => setResults(r.data)).catch(e => setError(e.message));
+    }, 300);
+    return () => clearTimeout(t);
+  }, [query, token]);
+
+  const doCheckIn = async (memberId) => {
+    try {
+      await api("checkIn", { memberId }, token);
+      setQuery(""); setResults([]);
+      loadRecent();
+    } catch (e) { setError(e.message); }
+  };
+
+  const startScan = async () => {
+    setError("");
+    if (!("BarcodeDetector" in window)) {
+      setError("QR scanning isn't supported in this browser — search by name or Member ID instead.");
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+      streamRef.current = stream;
+      videoRef.current.srcObject = stream;
+      await videoRef.current.play();
+      setScanning(true);
+      const detector = new window.BarcodeDetector({ formats: ["qr_code"] });
+      const scanLoop = async () => {
+        if (!streamRef.current) return;
+        try {
+          const codes = await detector.detect(videoRef.current);
+          if (codes.length > 0) { stopScan(); doCheckIn(codes[0].rawValue); return; }
+        } catch (e) { /* keep trying */ }
+        requestAnimationFrame(scanLoop);
+      };
+      scanLoop();
+    } catch (e) {
+      setError("Couldn't access the camera — check permissions, or search manually instead.");
+    }
+  };
+
+  const stopScan = () => {
+    if (streamRef.current) { streamRef.current.getTracks().forEach(t => t.stop()); streamRef.current = null; }
+    setScanning(false);
+  };
+
+  useEffect(() => () => stopScan(), []);
+
+  return (
+    <div>
+      <div className="checkin-hero">
+        <div className="icon">\uD83D\uDCF7</div>
+        <h3 style={{margin:0}}>Check members in</h3>
+        <p>Scan a QR code or search by name / Member ID</p>
+      </div>
+
+      {error && <div className="error-msg">{error}</div>}
+
+      {!scanning ? (
+        <button className="btn gold btn-block" style={{marginBottom:16}} onClick={startScan}>\uD83D\uDCF7 Start camera scan</button>
+      ) : (
+        <div style={{marginBottom:16}}>
+          <video ref={videoRef} style={{width:"100%",borderRadius:10,background:"#000"}} muted playsInline></video>
+          <button className="btn ghost btn-block" style={{marginTop:8}} onClick={stopScan}>Stop scanning</button>
+        </div>
+      )}
+
+      <div className="field">
+        <label>Search by name or Member ID</label>
+        <input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="e.g. GGNZ-0001 or Priya" />
+      </div>
+
+      {results.length > 0 && (
+        <div className="list-card" style={{marginBottom:20}}>
+          <table>
+            <tbody>
+              {results.map(m => (
+                <tr key={m.MemberID}>
+                  <td>{m.Name}<br/><span style={{color:"var(--muted)",fontSize:12}}>{m.MemberID}</span></td>
+                  <td style={{textAlign:"right"}}><button className="btn gold sm" onClick={()=>doCheckIn(m.MemberID)}>Check in</button></td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      <div className="section-label">Recent check-ins</div>
+      {recent.length === 0 ? <EmptyRow text="No check-ins yet today" /> : (
+        <div className="list-card">
+          <table>
+            <tbody>
+              {recent.map((c,i) => (
+                <tr key={i}><td>{c.Name}</td><td style={{color:"var(--muted)",fontSize:12}}>{new Date(c.Timestamp).toLocaleTimeString()}</td></tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ============================================================
+   REPORTS
+   ============================================================ */
+function Reports({ token }) {
+  const [data, setData] = useState(null);
+  const [error, setError] = useState("");
+  const canvasRef1 = useRef(null);
+  const canvasRef2 = useRef(null);
+  const chartRefs = useRef([]);
+
+  useEffect(() => {
+    api("dashboardSummary", {}, token).then(r => setData(r.data)).catch(e => setError(e.message));
+  }, [token]);
+
+  useEffect(() => {
+    if (!data) return;
+    chartRefs.current.forEach(c => c && c.destroy());
+    chartRefs.current = [];
+    if (canvasRef1.current) {
+      const c1 = new Chart(canvasRef1.current, {
+        type: "bar",
+        data: { labels: ["Members","Events","Bookings","Volunteers"],
+          datasets: [{ label:"Count", data:[data.memberCount, data.upcomingEventsCount, data.bookingCount, data.volunteerCount], backgroundColor:"#dfa53a" }] },
+        options: { plugins:{legend:{display:false}}, scales:{y:{beginAtZero:true}} }
+      });
+      chartRefs.current.push(c1);
+    }
+    if (canvasRef2.current) {
+      const byMethod = {};
+      (data.recentPayments||[]).forEach(p => { byMethod[p.Method] = (byMethod[p.Method]||0) + (parseFloat(p.Amount)||0); });
+      const c2 = new Chart(canvasRef2.current, {
+        type: "doughnut",
+        data: { labels: Object.keys(byMethod).length ? Object.keys(byMethod) : ["No data"],
+          datasets: [{ data: Object.keys(byMethod).length ? Object.values(byMethod) : [1], backgroundColor:["#0d332e","#dfa53a","#3f7a52","#7a2e46","#66756e"] }] }
+      });
+      chartRefs.current.push(c2);
+    }
+  }, [data]);
+
+  if (error) return <ApiErrorPanel message={error} />;
+  if (!data) return <LoadingPanel />;
+
+  return (
+    <div>
+      <div className="card" style={{marginBottom:16}}><h3 style={{marginTop:0}}>Activity overview</h3><canvas ref={canvasRef1} height="200"></canvas></div>
+      <div className="card"><h3 style={{marginTop:0}}>Recent payments by method</h3><canvas ref={canvasRef2} height="200"></canvas></div>
+    </div>
+  );
+}
+
+/* ============================================================
+   VOLUNTEERS
+   ============================================================ */
+function Volunteers({ token }) {
+  const [rows, setRows] = useState(null);
+  const [error, setError] = useState("");
+  const [search, setSearch] = useState("");
+  const [editing, setEditing] = useState(null);
+
+  const load = useCallback(() => {
+    api("listVolunteers", {}, token).then(r => setRows(r.data)).catch(e => setError(e.message));
+  }, [token]);
+  useEffect(load, [load]);
+
+  const filtered = useMemo(() => {
+    if (!rows) return [];
+    const q = search.toLowerCase();
+    return rows.filter(r => (r.Name||"").toLowerCase().includes(q) || (r.Skills||"").toLowerCase().includes(q));
+  }, [rows, search]);
+
+  const save = async (record) => { await api("saveVolunteer", { record: JSON.stringify(record) }, token); setEditing(null); load(); };
+  const remove = async (id) => { if (!confirm("Remove this volunteer?")) return; await api("deleteVolunteer", { id }, token); load(); };
+
+  if (error) return <ApiErrorPanel message={error} />;
+  if (!rows) return <LoadingPanel />;
+
+  return (
+    <div>
+      <div className="toolbar">
+        <input type="search" placeholder="Search by name or skill\u2026" value={search} onChange={e=>setSearch(e.target.value)} />
+        <button className="btn gold" onClick={()=>setEditing({})}>+ Add volunteer</button>
+      </div>
+      <div className="list-card"><div className="scroll-x">
+        {filtered.length === 0 ? <EmptyRow text="No volunteers found" /> : (
+          <table>
+            <thead><tr><th>Name</th><th>Contact</th><th>Skills</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+              {filtered.map(v => (
+                <tr key={v.VolunteerID}>
+                  <td>{v.Name}</td>
+                  <td>{v.Email}<br/><span style={{color:"var(--muted)",fontSize:12}}>{v.Phone}</span></td>
+                  <td>{v.Skills}</td>
+                  <td><StatusBadge status={v.Status} /></td>
+                  <td style={{whiteSpace:"nowrap"}}>
+                    <button className="btn ghost sm" style={{marginRight:6}} onClick={()=>setEditing(v)}>Edit</button>
+                    <button className="btn danger sm" onClick={()=>remove(v.VolunteerID)}>Remove</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div></div>
+      {editing !== null && <VolunteerModal record={editing} onClose={()=>setEditing(null)} onSave={save} />}
+    </div>
+  );
+}
+
+function VolunteerModal({ record, onClose, onSave }) {
+  const [form, setForm] = useState({
+    VolunteerID: record.VolunteerID || "", Name: record.Name || "", Email: record.Email || "",
+    Phone: record.Phone || "", Skills: record.Skills || "", Availability: record.Availability || "",
+    Status: record.Status || "Available", Notes: record.Notes || ""
+  });
+  const set = k => e => setForm({ ...form, [k]: e.target.value });
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={e=>e.stopPropagation()}>
+        <h3>{record.VolunteerID ? "Edit volunteer" : "Add volunteer"}</h3>
+        <div className="field"><label>Name</label><input value={form.Name} onChange={set("Name")} /></div>
+        <div className="field"><label>Email</label><input value={form.Email} onChange={set("Email")} /></div>
+        <div className="field"><label>Phone</label><input value={form.Phone} onChange={set("Phone")} /></div>
+        <div className="field"><label>Skills</label><input value={form.Skills} onChange={set("Skills")} placeholder="e.g. cooking, sound, driving" /></div>
+        <div className="field"><label>Availability</label><input value={form.Availability} onChange={set("Availability")} placeholder="e.g. weekends" /></div>
+        <div className="field">
+          <label>Status</label>
+          <select value={form.Status} onChange={set("Status")}>
+            <option>Available</option><option>Assigned</option><option>Inactive</option>
+          </select>
+        </div>
+        <div className="field"><label>Notes</label><input value={form.Notes} onChange={set("Notes")} /></div>
+        <div className="row-actions">
+          <button className="btn ghost" onClick={onClose}>Cancel</button>
+          <button className="btn gold" onClick={()=>onSave(form)}>Save</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   SETTINGS
+   ============================================================ */
+function Settings({ token, user }) {
+  const [settings, setSettings] = useState(null);
+  const [users, setUsers] = useState(null);
+  const [error, setError] = useState("");
+  const isAdmin = user.role === "admin";
+
+  useEffect(() => {
+    api("listSettings", {}, token).then(r => setSettings(r.data)).catch(e => setError(e.message));
+    if (isAdmin) api("listUsers", {}, token).then(r => setUsers(r.data)).catch(()=>{});
+  }, [token]);
+
+  const saveOne = async (key, value) => { await api("saveSetting", { key, value }, token); setSettings({ ...settings, [key]: value }); };
+
+  if (error) return <ApiErrorPanel message={error} />;
+  if (!settings) return <LoadingPanel />;
+
+  return (
+    <div>
+      <div className="card" style={{marginBottom:16}}>
+        <h3 style={{marginTop:0}}>Organization</h3>
+        <SettingField label="Organization name" value={settings.orgName || ""} onSave={v=>saveOne("orgName", v)} />
+        <SettingField label="Contact email" value={settings.contactEmail || ""} onSave={v=>saveOne("contactEmail", v)} />
+        <SettingField label="Annual member fee ($)" value={settings.annualFee || ""} onSave={v=>saveOne("annualFee", v)} />
+      </div>
+      <div className="card">
+        <h3 style={{marginTop:0}}>Your account</h3>
+        <p style={{color:"var(--muted)",fontSize:14}}>Signed in as <strong>{user.name}</strong> ({user.email})</p>
+        <p style={{color:"var(--muted)",fontSize:13}}>Role: <span className="badge ok">{user.role}</span></p>
+        {isAdmin && (
+          <div style={{marginTop:16}}>
+            <h4 style={{marginBottom:8}}>Committee users</h4>
+            {!users ? <div style={{color:"var(--muted)",fontSize:13}}>Loading\u2026</div> : (
+              <div className="scroll-x"><table>
+                <thead><tr><th>Name</th><th>Email</th><th>Role</th></tr></thead>
+                <tbody>{users.map((u,i) => <tr key={i}><td>{u.Name}</td><td>{u.Email}</td><td>{u.Role}</td></tr>)}</tbody>
+              </table></div>
+            )}
+            <p style={{fontSize:12,color:"var(--muted)",marginTop:10}}>To add users, add a row to the <code>Users</code> sheet, or call <code>saveUser</code> with a <code>Password</code> field.</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function SettingField({ label, value, onSave }) {
+  const [val, setVal] = useState(value);
+  const [saved, setSaved] = useState(false);
+  useEffect(() => setVal(value), [value]);
+  return (
+    <div className="field">
+      <label>{label}</label>
+      <div style={{display:"flex", gap:8}}>
+        <input value={val} onChange={e=>{setVal(e.target.value); setSaved(false);}} />
+        <button className="btn ghost" style={{whiteSpace:"nowrap"}} onClick={async ()=>{ await onSave(val); setSaved(true); }}>
+          {saved ? "Saved" : "Save"}
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ============================================================
+   ROOT
+   ============================================================ */
+function App() {
+  const [session, setSession] = useState(null);
+  if (!session) return <Login onLogin={(token, user) => setSession({ token, user })} />;
+  return <Shell user={session.user} token={session.token} onLogout={() => setSession(null)} />;
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
