@@ -210,24 +210,24 @@ async function api(action, params, token) {
    NAV CONFIG
    ============================================================ */
 const NAV_ITEMS = [
-  { key: "dashboard", label: "Dashboard", icon: "\u25A6" },
-  { key: "membership", label: "Membership", icon: "\uD83D\uDC65" },
-  { key: "events", label: "Events", icon: "\uD83C\uDF89" },
-  { key: "bookings", label: "Bookings", icon: "\uD83D\uDCDD" },
-  { key: "payments", label: "Payments", icon: "\uD83D\uDCB0" },
-  { key: "checkin", label: "QR Check-In", icon: "\uD83D\uDCF7" },
-  { key: "reports", label: "Reports", icon: "\uD83D\uDCCA" },
-  { key: "communications", label: "Communications", icon: "\uD83D\uDCE2" },
-  { key: "volunteers", label: "Volunteers", icon: "\uD83E\uDD1D" },
-  { key: "settings", label: "Settings", icon: "\u2699" }
+  { key: "dashboard", label: "Dashboard", icon: "▦" },
+  { key: "membership", label: "Membership", icon: "👥" },
+  { key: "events", label: "Events", icon: "🎉" },
+  { key: "bookings", label: "Bookings", icon: "📝" },
+  { key: "payments", label: "Payments", icon: "💰" },
+  { key: "checkin", label: "QR Check-In", icon: "📷" },
+  { key: "reports", label: "Reports", icon: "📊" },
+  { key: "communications", label: "Communications", icon: "📢" },
+  { key: "volunteers", label: "Volunteers", icon: "🤝" },
+  { key: "settings", label: "Settings", icon: "⚙" }
 ];
 
 const BOTTOM_TABS = [
-  { key: "dashboard", label: "Home", icon: "\uD83C\uDFE0" },
-  { key: "membership", label: "Members", icon: "\uD83D\uDC65" },
-  { key: "events", label: "Events", icon: "\uD83C\uDF89" },
-  { key: "checkin", label: "Check-in", icon: "\uD83D\uDCF7" },
-  { key: "settings", label: "Settings", icon: "\u2699" }
+  { key: "dashboard", label: "Home", icon: "🏠" },
+  { key: "membership", label: "Members", icon: "👥" },
+  { key: "events", label: "Events", icon: "🎉" },
+  { key: "checkin", label: "Check-in", icon: "📷" },
+  { key: "settings", label: "Settings", icon: "⚙" }
 ];
 
 /* ============================================================
@@ -363,7 +363,7 @@ function Page({ page, token, user, onNavigate }) {
     case "payments": return <Payments token={token} />;
     case "checkin": return <CheckIn token={token} />;
     case "reports": return <Reports token={token} />;
-    case "communications": return <Stub icon="\uD83D\uDCE2" label="Communications" note="Ready to wire up once your email API key is set — this will send announcements and RSVP confirmations to members." />;
+    case "communications": return <Stub icon="📢" label="Communications" note="Ready to wire up once your email API key is set — this will send announcements and RSVP confirmations to members." />;
     case "volunteers": return <Volunteers token={token} />;
     case "settings": return <Settings token={token} user={user} />;
     default: return null;
@@ -425,7 +425,7 @@ function Dashboard({ token, user, onNavigate }) {
     <div>
       <div className="greeting">
         <h2>{greetingFor(now.getHours())}, {firstName}</h2>
-        <div className="date-line"><span>\uD83D\uDCC5</span><span>Today: {now.toLocaleDateString("en-NZ", { day:"numeric", month:"long", year:"numeric" })}</span></div>
+        <div className="date-line"><span>📅</span><span>Today: {now.toLocaleDateString("en-NZ", { day:"numeric", month:"long", year:"numeric" })}</span></div>
       </div>
 
       {error && <ApiErrorPanel message={error} />}
@@ -434,19 +434,19 @@ function Dashboard({ token, user, onNavigate }) {
       {data && (
         <React.Fragment>
           <div className="stat-list">
-            <StatRow icon="\uD83D\uDC65" label="Members" value={data.memberCount} />
-            <StatRow icon="\uD83C\uDF89" label="Upcoming Events" value={data.upcomingEventsCount} />
-            <StatRow icon="\uD83D\uDCDD" label="Bookings" value={data.bookingCount} />
-            <StatRow icon="\uD83D\uDCB0" label="Pending Payments" value={data.pendingPaymentsCount} />
-            <StatRow icon="\uD83D\uDCF7" label="Today's Check-ins" value={data.todayCheckins} />
+            <StatRow icon="👥" label="Members" value={data.memberCount} />
+            <StatRow icon="🎉" label="Upcoming Events" value={data.upcomingEventsCount} />
+            <StatRow icon="📝" label="Bookings" value={data.bookingCount} />
+            <StatRow icon="💰" label="Pending Payments" value={data.pendingPaymentsCount} />
+            <StatRow icon="📷" label="Today's Check-ins" value={data.todayCheckins} />
           </div>
 
           <div className="section-label">Quick Actions</div>
           <div className="qa-grid">
-            <QuickAction icon="\u2795" label="Add Member" onClick={()=>onNavigate("membership")} />
-            <QuickAction icon="\uD83C\uDF89" label="Create Event" onClick={()=>onNavigate("events")} />
-            <QuickAction icon="\uD83D\uDCF7" label="Start Check-in" onClick={()=>onNavigate("checkin")} />
-            <QuickAction icon="\uD83D\uDCCA" label="Reports" onClick={()=>onNavigate("reports")} />
+            <QuickAction icon="➕" label="Add Member" onClick={()=>onNavigate("membership")} />
+            <QuickAction icon="🎉" label="Create Event" onClick={()=>onNavigate("events")} />
+            <QuickAction icon="📷" label="Start Check-in" onClick={()=>onNavigate("checkin")} />
+            <QuickAction icon="📊" label="Reports" onClick={()=>onNavigate("reports")} />
           </div>
 
           {data.upcomingEvents && data.upcomingEvents.length > 0 && (
@@ -860,7 +860,7 @@ function CheckIn({ token }) {
   return (
     <div>
       <div className="checkin-hero">
-        <div className="icon">\uD83D\uDCF7</div>
+        <div className="icon">📷</div>
         <h3 style={{margin:0}}>Check members in</h3>
         <p>Scan a QR code or search by name / Member ID</p>
       </div>
@@ -868,7 +868,7 @@ function CheckIn({ token }) {
       {error && <div className="error-msg">{error}</div>}
 
       {!scanning ? (
-        <button className="btn gold btn-block" style={{marginBottom:16}} onClick={startScan}>\uD83D\uDCF7 Start camera scan</button>
+        <button className="btn gold btn-block" style={{marginBottom:16}} onClick={startScan}>📷 Start camera scan</button>
       ) : (
         <div style={{marginBottom:16}}>
           <video ref={videoRef} style={{width:"100%",borderRadius:10,background:"#000"}} muted playsInline></video>
