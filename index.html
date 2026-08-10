@@ -461,7 +461,7 @@ function Dashboard({ token, user, onNavigate }) {
                 <div className="event-card" key={i}>
                   <div>
                     <div className="ev-name">{e.Name}</div>
-                    <div className="ev-meta">{formatDate(e.Date)} \u00b7 {e.Location || "Location TBC"}</div>
+                    <div className="ev-meta">{formatDate(e.Date)} · {e.Location || "Location TBC"}</div>
                   </div>
                   <StatusBadge status={e.Status} />
                 </div>
@@ -665,7 +665,7 @@ function Events({ token }) {
         <div className="event-card" key={e.EventID}>
           <div>
             <div className="ev-name">{e.Name}</div>
-            <div className="ev-meta">{formatDate(e.Date)} \u00b7 {e.Location || "Location TBC"} \u00b7 Capacity {e.Capacity || "\u2014"}</div>
+            <div className="ev-meta">{formatDate(e.Date)} · {e.Location || "Location TBC"} · Capacity {e.Capacity || "\u2014"}</div>
           </div>
           <div style={{display:"flex",alignItems:"center",gap:8}}>
             <StatusBadge status={e.Status} />
@@ -826,7 +826,7 @@ function Payments({ token }) {
   return (
     <div>
       <div className="toolbar">
-        <div style={{color:"var(--muted)",fontSize:13}}>{rows.length} payment{rows.length===1?"":"s"} \u00b7 ${total.toLocaleString()} total</div>
+        <div style={{color:"var(--muted)",fontSize:13}}>{rows.length} payment{rows.length===1?"":"s"} · ${total.toLocaleString()} total</div>
         <button className="btn gold" onClick={()=>setAdding(true)}>+ Record payment</button>
       </div>
       <div className="list-card"><div className="scroll-x">
