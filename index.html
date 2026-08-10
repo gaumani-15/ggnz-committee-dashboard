@@ -267,7 +267,7 @@ function Login({ onLogin }) {
               <input id="password" type="password" value={password} onChange={e=>setPassword(e.target.value)} required />
             </div>
             <button className="btn gold btn-block" type="submit" disabled={loading}>
-              {loading ? "Signing in\u2026" : "Sign in"}
+              {loading ? "Signing in…" : "Sign in"}
             </button>
           </form>
         </div>
@@ -374,7 +374,7 @@ function Stub({ icon, label, note }) {
   return (
     <div className="stub-panel">
       <div className="icon">{icon}</div>
-      <h3 style={{margin:"0 0 8px", color:"var(--teal-900)"}}>{label} \u2014 coming soon</h3>
+      <h3 style={{margin:"0 0 8px", color:"var(--teal-900)"}}>{label} — coming soon</h3>
       <p style={{maxWidth:440, margin:"0 auto"}}>{note}</p>
     </div>
   );
@@ -386,10 +386,10 @@ function Stub({ icon, label, note }) {
 function StatusBadge({ status }) {
   const s = (status || "").toLowerCase();
   const cls = ["confirmed","paid","active","planned"].includes(s) ? "ok" : s === "pending" ? "pending" : "bad";
-  return <span className={"badge " + cls}>{status || "\u2014"}</span>;
+  return <span className={"badge " + cls}>{status || "—"}</span>;
 }
-function EmptyRow({ text }) { return <div className="empty-state"><div className="icon">\u2014</div>{text}</div>; }
-function LoadingPanel() { return <div className="empty-state">Loading\u2026</div>; }
+function EmptyRow({ text }) { return <div className="empty-state"><div className="icon">—</div>{text}</div>; }
+function LoadingPanel() { return <div className="empty-state">Loading…</div>; }
 function ApiErrorPanel({ message }) {
   return (
     <div className="card" style={{borderColor:"var(--plum)"}}>
@@ -401,9 +401,9 @@ function ApiErrorPanel({ message }) {
   );
 }
 function formatDate(d) {
-  if (!d) return "\u2014";
+  if (!d) return "—";
   const parsed = new Date(d);
-  if (isNaN(parsed)) return "\u2014";
+  if (isNaN(parsed)) return "—";
   return parsed.toLocaleDateString("en-NZ", { day:"numeric", month:"short", year:"numeric" });
 }
 
@@ -521,7 +521,7 @@ function Membership({ token }) {
   return (
     <div>
       <div className="toolbar">
-        <input type="search" placeholder="Search name, ID or email\u2026" value={search} onChange={e=>setSearch(e.target.value)} />
+        <input type="search" placeholder="Search name, ID or email…" value={search} onChange={e=>setSearch(e.target.value)} />
         <button className="btn gold" onClick={()=>setEditing({})}>+ Add member</button>
       </div>
       <div className="list-card"><div className="scroll-x">
@@ -541,7 +541,7 @@ function Membership({ token }) {
                     </td>
                     <td>{formatDate(m.DOB)}</td>
                     <td>{m.Email}<br/><span style={{color:"var(--muted)",fontSize:12}}>{m.Phone}</span></td>
-                    <td>{m.MealPlan || "\u2014"}</td>
+                    <td>{m.MealPlan || "—"}</td>
                     <td><StatusBadge status={m.DuesStatus} /></td>
                     <td style={{whiteSpace:"nowrap"}}>
                       <button className="btn ghost sm" style={{marginRight:6}} onClick={()=>setEditing(m)}>Edit</button>
@@ -665,7 +665,7 @@ function Events({ token }) {
         <div className="event-card" key={e.EventID}>
           <div>
             <div className="ev-name">{e.Name}</div>
-            <div className="ev-meta">{formatDate(e.Date)} · {e.Location || "Location TBC"} · Capacity {e.Capacity || "\u2014"}</div>
+            <div className="ev-meta">{formatDate(e.Date)} · {e.Location || "Location TBC"} · Capacity {e.Capacity || "—"}</div>
           </div>
           <div style={{display:"flex",alignItems:"center",gap:8}}>
             <StatusBadge status={e.Status} />
@@ -756,7 +756,7 @@ function Bookings({ token }) {
                   <td style={{whiteSpace:"nowrap"}}>
                     {(!b.PaymentStatus || b.PaymentStatus === "Pending") && (
                       <button className="btn gold sm" style={{marginRight:6}} disabled={markingId===b.BookingID} onClick={()=>markPaid(b.BookingID)}>
-                        {markingId===b.BookingID ? "Marking\u2026" : "Mark Paid"}
+                        {markingId===b.BookingID ? "Marking…" : "Mark Paid"}
                       </button>
                     )}
                     <button className="btn ghost sm" style={{marginRight:6}} onClick={()=>setEditing(b)}>Edit</button>
@@ -1076,7 +1076,7 @@ function Volunteers({ token }) {
   return (
     <div>
       <div className="toolbar">
-        <input type="search" placeholder="Search by name or skill\u2026" value={search} onChange={e=>setSearch(e.target.value)} />
+        <input type="search" placeholder="Search by name or skill…" value={search} onChange={e=>setSearch(e.target.value)} />
         <button className="btn gold" onClick={()=>setEditing({})}>+ Add volunteer</button>
       </div>
       <div className="list-card"><div className="scroll-x">
@@ -1171,7 +1171,7 @@ function Settings({ token, user }) {
         {isAdmin && (
           <div style={{marginTop:16}}>
             <h4 style={{marginBottom:8}}>Committee users</h4>
-            {!users ? <div style={{color:"var(--muted)",fontSize:13}}>Loading\u2026</div> : (
+            {!users ? <div style={{color:"var(--muted)",fontSize:13}}>Loading…</div> : (
               <div className="scroll-x"><table>
                 <thead><tr><th>Name</th><th>Email</th><th>Role</th></tr></thead>
                 <tbody>{users.map((u,i) => <tr key={i}><td>{u.Name}</td><td>{u.Email}</td><td>{u.Role}</td></tr>)}</tbody>
