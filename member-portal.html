@@ -244,7 +244,7 @@ function DetailsTab({ member, family }) {
 const MEAL_CHOICES = ["No Meal", "Standard", "Jain"];
 const GUEST_TIERS = [
   { key: "Adult", label: "Adult (12+)", price: 20 },
-  { key: "Child", label: "Child (5\u201312)", price: 10 },
+  { key: "Child", label: "Child (5–12)", price: 10 },
   { key: "Under5", label: "Under 5", price: 0 }
 ];
 
@@ -284,12 +284,12 @@ function RsvpTab({ member, family }) {
   const updateGuest = (id, patch) => setGuests(guests.map(g => g.id === id ? { ...g, ...patch } : g));
   const removeGuest = (id) => setGuests(guests.filter(g => g.id !== id));
 
-  const total = everyone.reduce((sum, p) => attending[p.MemberID] ? sum + memberCharge(p.AgeCategory, member.MealPlan, mealChoice[p.MemberID]) : sum, 0)
+  const total = everyone.reduce((sum, p) => attending[p.MemberID] !== false ? sum + memberCharge(p.AgeCategory, member.MealPlan, mealChoice[p.MemberID]) : sum, 0)
     + guests.reduce((sum, g) => sum + guestCharge(g.Tier, g.Meal), 0);
 
   const submit = async () => {
     setError(""); setSuccess("");
-    const party = everyone.filter(p => attending[p.MemberID]);
+    const party = everyone.filter(p => attending[p.MemberID] !== false);
     if (!selectedEvent) { setError("Choose an event first."); return; }
     if (party.length === 0 && guests.length === 0) { setError("Select at least one attendee, or add a guest."); return; }
     if (guests.some(g => !g.Name.trim())) { setError("Every guest needs a name."); return; }
@@ -327,7 +327,7 @@ function RsvpTab({ member, family }) {
       ) : events.map(e => (
         <div key={e.EventID} className={"event-card" + (selectedEvent && selectedEvent.EventID===e.EventID ? " selected" : "")} onClick={()=>setSelectedEvent(e)}>
           <div className="ev-name">{e.Name}</div>
-          <div className="ev-meta">{formatDate(e.Date)} \u00b7 {e.Location || "Location TBC"}</div>
+          <div className="ev-meta">{formatDate(e.Date)} · {e.Location || "Location TBC"}</div>
         </div>
       ))}
 
@@ -335,7 +335,7 @@ function RsvpTab({ member, family }) {
         <React.Fragment>
           <div className="section-label" style={{marginTop:18}}>Members</div>
           {everyone.map(p => {
-            const isIn = !!attending[p.MemberID];
+            const isIn = attending[p.MemberID] !== false;
             const meal = mealChoice[p.MemberID] || "No Meal";
             const charge = isIn ? memberCharge(p.AgeCategory, member.MealPlan, meal) : 0;
             const isPaidPlan = member.MealPlan === "Yearly" || member.MealPlan === "Half-Yearly";
@@ -344,7 +344,7 @@ function RsvpTab({ member, family }) {
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
                   <div>
                     <div style={{fontWeight:700,fontFamily:"'Newsreader',serif",fontSize:16}}>{p.Name}</div>
-                    <div style={{color:"var(--muted)",fontSize:12}}>{p.MemberID} \u00b7 {p.AgeCategory || "Age unknown"}</div>
+                    <div style={{color:"var(--muted)",fontSize:12}}>{p.MemberID} · {p.AgeCategory || "Age unknown"}</div>
                   </div>
                   <button
                     className="btn sm"
@@ -377,7 +377,7 @@ function RsvpTab({ member, family }) {
             <div className="section-label" style={{margin:0}}>Guests (relatives only, non-members)</div>
             <button className="btn ghost sm" type="button" onClick={addGuest}>+ Add Guest</button>
           </div>
-          <p style={{color:"var(--muted)",fontSize:12,marginTop:-4}}>Adult (12+) = $20 \u00b7 Child (5\u201312) = $10 \u00b7 Under 5 = Free \u2014 only charged if a meal is selected.</p>
+          <p style={{color:"var(--muted)",fontSize:12,marginTop:-4}}>Adult (12+) = $20 · Child (5–12) = $10 · Under 5 = Free \u2014 only charged if a meal is selected.</p>
 
           {guests.map(g => (
             <div className="card" key={g.id} style={{marginBottom:10}}>
@@ -438,7 +438,7 @@ function BookingsTab({ memberId }) {
       <div className="section-label">Your bookings</div>
       {bookings.length === 0 ? <div className="empty-state">No bookings yet.</div> : bookings.map((b,i) => (
         <div className="booking-row" key={i}>
-          <div><div className="b-name">{b.Name}</div><div className="b-meta">{b.EventID} \u00b7 {b.Meal || "No meal noted"}</div></div>
+          <div><div className="b-name">{b.Name}</div><div className="b-meta">{b.EventID} · {b.Meal || "No meal noted"}</div></div>
           <StatusBadge status={b.Status} />
         </div>
       ))}
