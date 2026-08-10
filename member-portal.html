@@ -128,12 +128,12 @@ async function api(action, params) {
 function StatusBadge({ status }) {
   const s = (status || "").toLowerCase();
   const cls = ["confirmed","paid","active"].includes(s) ? "ok" : s === "pending" ? "pending" : "bad";
-  return <span className={"badge " + cls}>{status || "\u2014"}</span>;
+  return <span className={"badge " + cls}>{status || "—"}</span>;
 }
 function formatDate(d) {
-  if (!d) return "\u2014";
+  if (!d) return "—";
   const parsed = new Date(d);
-  if (isNaN(parsed)) return "\u2014";
+  if (isNaN(parsed)) return "—";
   return parsed.toLocaleDateString("en-NZ", { day:"numeric", month:"short", year:"numeric" });
 }
 
@@ -211,7 +211,7 @@ function LookupScreen({ onFound }) {
           </div>
           <CaptchaWidget onVerify={setCaptchaToken} resetSignal={resetSignal} />
           <button className="btn gold btn-block" type="submit" disabled={loading}>
-            {loading ? "Looking up\u2026" : "Find my membership"}
+            {loading ? "Looking up…" : "Find my membership"}
           </button>
         </form>
       </div>
@@ -279,7 +279,7 @@ function DetailsTab({ member, family }) {
         <span>Dues status</span><StatusBadge status={member.DuesStatus} />
       </div>
       <div style={{display:"flex",justifyContent:"space-between",padding:"8px 0"}}>
-        <span>Meal plan</span><strong>{member.MealPlan || "\u2014"}</strong>
+        <span>Meal plan</span><strong>{member.MealPlan || "—"}</strong>
       </div>
       {family.length > 0 && (
         <React.Fragment>
@@ -358,7 +358,7 @@ function RsvpTab({ member, family }) {
       for (const g of guests) {
         await api("publicBooking", { record: JSON.stringify({
           EventID: selectedEvent.EventID, MemberID: "", Name: g.Name + " (Guest)",
-          Party: 1, Meal: "Guest \u2022 " + g.Tier + " \u2022 " + (g.Meal || "No Meal")
+          Party: 1, Meal: "Guest • " + g.Tier + " • " + (g.Meal || "No Meal")
         }) });
       }
       setSuccess("RSVP sent! The committee will confirm and follow up on payment.");
@@ -368,7 +368,7 @@ function RsvpTab({ member, family }) {
   };
 
   if (error && !events) return <div className="error-msg">{error}</div>;
-  if (!events) return <div className="empty-state">Loading events\u2026</div>;
+  if (!events) return <div className="empty-state">Loading events…</div>;
 
   return (
     <div>
@@ -431,7 +431,7 @@ function RsvpTab({ member, family }) {
             <div className="section-label" style={{margin:0}}>Guests (relatives only, non-members)</div>
             <button className="btn ghost sm" type="button" onClick={addGuest}>+ Add Guest</button>
           </div>
-          <p style={{color:"var(--muted)",fontSize:12,marginTop:-4}}>Adult (12+) = $20 · Child (5–12) = $10 · Under 5 = Free \u2014 only charged if a meal is selected.</p>
+          <p style={{color:"var(--muted)",fontSize:12,marginTop:-4}}>Adult (12+) = $20 · Child (5–12) = $10 · Under 5 = Free — only charged if a meal is selected.</p>
 
           {guests.map(g => (
             <div className="card" key={g.id} style={{marginBottom:10}}>
@@ -468,7 +468,7 @@ function RsvpTab({ member, family }) {
           <p style={{color:"var(--muted)",fontSize:11.5,marginTop:6}}>This is an estimate — the committee confirms your booking and payment separately.</p>
 
           <button className="btn gold btn-block" style={{marginTop:6}} onClick={submit} disabled={submitting}>
-            {submitting ? "Sending\u2026" : "Submit RSVP"}
+            {submitting ? "Sending…" : "Submit RSVP"}
           </button>
         </React.Fragment>
       )}
@@ -485,7 +485,7 @@ function BookingsTab({ memberId }) {
   }, [memberId]);
 
   if (error) return <div className="error-msg">{error}</div>;
-  if (!bookings) return <div className="empty-state">Loading\u2026</div>;
+  if (!bookings) return <div className="empty-state">Loading…</div>;
 
   return (
     <div className="card">
