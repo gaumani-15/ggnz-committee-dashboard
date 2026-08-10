@@ -718,6 +718,7 @@ function Bookings({ token }) {
   const [rows, setRows] = useState(null);
   const [error, setError] = useState("");
   const [editing, setEditing] = useState(null);
+  const [markingId, setMarkingId] = useState(null);
 
   const load = useCallback(() => {
     api("listBookings", {}, token).then(r => setRows(r.data)).catch(e => setError(e.message));
@@ -726,6 +727,12 @@ function Bookings({ token }) {
 
   const save = async (record) => { await api("saveBooking", { record: JSON.stringify(record) }, token); setEditing(null); load(); };
   const remove = async (id) => { if (!confirm("Delete this booking?")) return; await api("deleteBooking", { id }, token); load(); };
+  const markPaid = async (id) => {
+    setMarkingId(id);
+    try { await api("markBookingPaid", { id }, token); load(); }
+    catch (e) { alert(e.message); }
+    finally { setMarkingId(null); }
+  };
 
   if (error) return <ApiErrorPanel message={error} />;
   if (!rows) return <LoadingPanel />;
@@ -739,13 +746,19 @@ function Bookings({ token }) {
       <div className="list-card"><div className="scroll-x">
         {rows.length === 0 ? <EmptyRow text="No bookings yet" /> : (
           <table>
-            <thead><tr><th>Name</th><th>Event</th><th>Member ID</th><th>Party</th><th>Meal</th><th>Status</th><th></th></tr></thead>
+            <thead><tr><th>Name</th><th>Event</th><th>Meal</th><th>Status</th><th>Payment</th><th></th></tr></thead>
             <tbody>
               {rows.map(b => (
                 <tr key={b.BookingID}>
-                  <td>{b.Name}</td><td>{b.EventID}</td><td>{b.MemberID}</td><td>{b.Party}</td><td>{b.Meal}</td>
+                  <td>{b.Name}</td><td>{b.EventID}</td><td>{b.Meal}</td>
                   <td><StatusBadge status={b.Status} /></td>
+                  <td><StatusBadge status={b.PaymentStatus || "Pending"} /></td>
                   <td style={{whiteSpace:"nowrap"}}>
+                    {(!b.PaymentStatus || b.PaymentStatus === "Pending") && (
+                      <button className="btn gold sm" style={{marginRight:6}} disabled={markingId===b.BookingID} onClick={()=>markPaid(b.BookingID)}>
+                        {markingId===b.BookingID ? "Marking\u2026" : "Mark Paid"}
+                      </button>
+                    )}
                     <button className="btn ghost sm" style={{marginRight:6}} onClick={()=>setEditing(b)}>Edit</button>
                     <button className="btn danger sm" onClick={()=>remove(b.BookingID)}>Delete</button>
                   </td>
