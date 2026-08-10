@@ -807,34 +807,67 @@ function BookingModal({ record, onClose, onSave }) {
    PAYMENTS
    ============================================================ */
 function Payments({ token }) {
-  const [rows, setRows] = useState(null);
+  const [bookings, setBookings] = useState(null);
+  const [payments, setPayments] = useState(null);
   const [error, setError] = useState("");
   const [adding, setAdding] = useState(false);
+  const [confirming, setConfirming] = useState(null); // booking being marked paid
 
   const load = useCallback(() => {
-    api("listPayments", {}, token).then(r => setRows(r.data)).catch(e => setError(e.message));
+    Promise.all([
+      api("listBookings", {}, token),
+      api("listPayments", {}, token)
+    ]).then(([b, p]) => { setBookings(b.data); setPayments(p.data); })
+      .catch(e => setError(e.message));
   }, [token]);
   useEffect(load, [load]);
 
-  const save = async (record) => { await api("savePayment", { record: JSON.stringify(record) }, token); setAdding(false); load(); };
+  const savePayment = async (record) => { await api("savePayment", { record: JSON.stringify(record) }, token); setAdding(false); load(); };
+  const confirmPayment = async (method) => {
+    try {
+      await api("markBookingPaid", { id: confirming.BookingID, method }, token);
+      setConfirming(null);
+      load();
+    } catch (e) { alert(e.message); }
+  };
 
   if (error) return <ApiErrorPanel message={error} />;
-  if (!rows) return <LoadingPanel />;
+  if (!bookings || !payments) return <LoadingPanel />;
 
-  const total = rows.reduce((s,p)=> s + (parseFloat(p.Amount)||0), 0);
+  const awaiting = bookings.filter(b => (b.PaymentStatus || "Pending") !== "Paid");
+  const total = payments.reduce((s,p)=> s + (parseFloat(p.Amount)||0), 0);
 
   return (
     <div>
+      <div className="section-label" style={{marginTop:0}}>Awaiting payment</div>
+      <div className="list-card" style={{marginBottom:22}}><div className="scroll-x">
+        {awaiting.length === 0 ? <EmptyRow text="Nothing awaiting payment" /> : (
+          <table>
+            <thead><tr><th>Name</th><th>Event</th><th>Meal</th><th></th></tr></thead>
+            <tbody>
+              {awaiting.map(b => (
+                <tr key={b.BookingID}>
+                  <td>{b.Name}</td><td>{b.EventID}</td><td>{b.Meal}</td>
+                  <td style={{whiteSpace:"nowrap"}}>
+                    <button className="btn gold sm" onClick={()=>setConfirming(b)}>Mark Paid</button>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </div></div>
+
       <div className="toolbar">
-        <div style={{color:"var(--muted)",fontSize:13}}>{rows.length} payment{rows.length===1?"":"s"} · ${total.toLocaleString()} total</div>
+        <div className="section-label" style={{margin:0}}>Payment history · {payments.length} payment{payments.length===1?"":"s"} · ${total.toLocaleString()} total</div>
         <button className="btn gold" onClick={()=>setAdding(true)}>+ Record payment</button>
       </div>
       <div className="list-card"><div className="scroll-x">
-        {rows.length === 0 ? <EmptyRow text="No payments yet" /> : (
+        {payments.length === 0 ? <EmptyRow text="No payments yet" /> : (
           <table>
             <thead><tr><th>Date</th><th>Name</th><th>Amount</th><th>Method</th><th>For</th><th>Status</th></tr></thead>
             <tbody>
-              {rows.map((p,i) => (
+              {payments.slice().reverse().map((p,i) => (
                 <tr key={i}>
                   <td>{formatDate(p.Date)}</td><td>{p.Name}</td><td>${p.Amount}</td><td>{p.Method}</td><td>{p.For}</td>
                   <td><StatusBadge status={p.Status} /></td>
@@ -844,7 +877,35 @@ function Payments({ token }) {
           </table>
         )}
       </div></div>
-      {adding && <PaymentModal onClose={()=>setAdding(false)} onSave={save} />}
+      {adding && <PaymentModal onClose={()=>setAdding(false)} onSave={savePayment} />}
+      {confirming && <ConfirmPaymentModal booking={confirming} onClose={()=>setConfirming(null)} onConfirm={confirmPayment} />}
+    </div>
+  );
+}
+
+function ConfirmPaymentModal({ booking, onClose, onConfirm }) {
+  const [method, setMethod] = useState("Cash");
+  const [submitting, setSubmitting] = useState(false);
+  const submit = async () => { setSubmitting(true); await onConfirm(method); setSubmitting(false); };
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={e=>e.stopPropagation()}>
+        <h3>Confirm payment</h3>
+        <p style={{color:"var(--muted)",fontSize:13.5,marginTop:-8}}>
+          This marks <strong>{booking.Name}</strong>'s booking for {booking.EventID} as Confirmed and Paid,
+          logs a payment record, and emails them a confirmation.
+        </p>
+        <div className="field">
+          <label>Payment method</label>
+          <select value={method} onChange={e=>setMethod(e.target.value)}>
+            <option>Cash</option><option>Bank transfer</option><option>Card</option><option>Other</option>
+          </select>
+        </div>
+        <div className="row-actions">
+          <button className="btn ghost" onClick={onClose}>Cancel</button>
+          <button className="btn gold" onClick={submit} disabled={submitting}>{submitting ? "Confirming…" : "Confirm payment"}</button>
+        </div>
+      </div>
     </div>
   );
 }
