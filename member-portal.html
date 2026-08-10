@@ -241,37 +241,74 @@ function DetailsTab({ member, family }) {
   );
 }
 
+const MEAL_CHOICES = ["No Meal", "Standard", "Jain"];
+const GUEST_TIERS = [
+  { key: "Adult", label: "Adult (12+)", price: 20 },
+  { key: "Child", label: "Child (5\u201312)", price: 10 },
+  { key: "Under5", label: "Under 5", price: 0 }
+];
+
+function memberCharge(ageCategory, mealPlan, meal) {
+  if (!meal || meal === "No Meal") return 0;
+  const isPaidPlan = mealPlan === "Yearly" || mealPlan === "Half-Yearly";
+  if (isPaidPlan) return 0;
+  if (ageCategory === "Under 12Y") return 0;
+  return 15;
+}
+function guestCharge(tierKey, meal) {
+  if (!meal || meal === "No Meal") return 0;
+  const tier = GUEST_TIERS.find(t => t.key === tierKey);
+  return tier ? tier.price : 0;
+}
+
 function RsvpTab({ member, family }) {
   const [events, setEvents] = useState(null);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [selectedEvent, setSelectedEvent] = useState(null);
-  const [attendees, setAttendees] = useState({}); // MemberID -> boolean
-  const [meal, setMeal] = useState("");
+  const [attending, setAttending] = useState({});   // MemberID -> bool
+  const [mealChoice, setMealChoice] = useState({});  // MemberID -> meal string
+  const [guests, setGuests] = useState([]);          // [{id, Name, Tier, Meal}]
   const [submitting, setSubmitting] = useState(false);
 
-  const everyone = [{ MemberID: member.MemberID, Name: member.Name }, ...family];
+  const everyone = [{ MemberID: member.MemberID, Name: member.Name, AgeCategory: member.AgeCategory }, ...family];
 
   useEffect(() => {
     api("publicEvents", {}).then(r => setEvents(r.data)).catch(e => setError(e.message));
   }, []);
 
-  const toggle = (id) => setAttendees({ ...attendees, [id]: !attendees[id] });
+  const toggleAttending = (id) => setAttending({ ...attending, [id]: !attending[id] });
+  const setMeal = (id, meal) => setMealChoice({ ...mealChoice, [id]: meal });
+
+  const addGuest = () => setGuests([...guests, { id: "g" + Date.now() + Math.random(), Name: "", Tier: "Adult", Meal: "No Meal" }]);
+  const updateGuest = (id, patch) => setGuests(guests.map(g => g.id === id ? { ...g, ...patch } : g));
+  const removeGuest = (id) => setGuests(guests.filter(g => g.id !== id));
+
+  const total = everyone.reduce((sum, p) => attending[p.MemberID] ? sum + memberCharge(p.AgeCategory, member.MealPlan, mealChoice[p.MemberID]) : sum, 0)
+    + guests.reduce((sum, g) => sum + guestCharge(g.Tier, g.Meal), 0);
 
   const submit = async () => {
     setError(""); setSuccess("");
-    const party = everyone.filter(p => attendees[p.MemberID]);
+    const party = everyone.filter(p => attending[p.MemberID]);
     if (!selectedEvent) { setError("Choose an event first."); return; }
-    if (party.length === 0) { setError("Select at least one attendee."); return; }
+    if (party.length === 0 && guests.length === 0) { setError("Select at least one attendee, or add a guest."); return; }
+    if (guests.some(g => !g.Name.trim())) { setError("Every guest needs a name."); return; }
     setSubmitting(true);
     try {
       for (const p of party) {
         await api("publicBooking", { record: JSON.stringify({
-          EventID: selectedEvent.EventID, MemberID: p.MemberID, Name: p.Name, Party: 1, Meal: meal
+          EventID: selectedEvent.EventID, MemberID: p.MemberID, Name: p.Name,
+          Party: 1, Meal: mealChoice[p.MemberID] || "No Meal"
         }) });
       }
-      setSuccess("RSVP sent! The committee will confirm it shortly.");
-      setAttendees({}); setSelectedEvent(null); setMeal("");
+      for (const g of guests) {
+        await api("publicBooking", { record: JSON.stringify({
+          EventID: selectedEvent.EventID, MemberID: "", Name: g.Name + " (Guest)",
+          Party: 1, Meal: "Guest \u2022 " + g.Tier + " \u2022 " + (g.Meal || "No Meal")
+        }) });
+      }
+      setSuccess("RSVP sent! The committee will confirm and follow up on payment.");
+      setAttending({}); setMealChoice({}); setGuests([]); setSelectedEvent(null);
     } catch (e) { setError(e.message); }
     finally { setSubmitting(false); }
   };
@@ -295,22 +332,91 @@ function RsvpTab({ member, family }) {
       ))}
 
       {selectedEvent && (
-        <div className="card" style={{marginTop:6}}>
-          <div className="section-label">Who's attending?</div>
-          {everyone.map(p => (
-            <div key={p.MemberID} className="family-row">
-              <input type="checkbox" checked={!!attendees[p.MemberID]} onChange={()=>toggle(p.MemberID)} id={"att-"+p.MemberID} />
-              <label htmlFor={"att-"+p.MemberID} style={{fontSize:14}}>{p.Name}</label>
+        <React.Fragment>
+          <div className="section-label" style={{marginTop:18}}>Members</div>
+          {everyone.map(p => {
+            const isIn = !!attending[p.MemberID];
+            const meal = mealChoice[p.MemberID] || "No Meal";
+            const charge = isIn ? memberCharge(p.AgeCategory, member.MealPlan, meal) : 0;
+            const isPaidPlan = member.MealPlan === "Yearly" || member.MealPlan === "Half-Yearly";
+            return (
+              <div className="card" key={p.MemberID} style={{marginBottom:10}}>
+                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                  <div>
+                    <div style={{fontWeight:700,fontFamily:"'Newsreader',serif",fontSize:16}}>{p.Name}</div>
+                    <div style={{color:"var(--muted)",fontSize:12}}>{p.MemberID} \u00b7 {p.AgeCategory || "Age unknown"}</div>
+                  </div>
+                  <button
+                    className="btn sm"
+                    style={isIn ? {background:"var(--sage)"} : {background:"var(--border)",color:"var(--muted)"}}
+                    onClick={()=>toggleAttending(p.MemberID)}
+                  >
+                    {isIn ? "Attending" : "Not Attending"}
+                  </button>
+                </div>
+                <div style={{fontSize:12.5,color:"var(--muted)",marginTop:8}}>
+                  Meal plan: <strong style={{color:"var(--ink)"}}>{member.MealPlan || "Not set"}</strong>
+                  {isPaidPlan && <span style={{color:"var(--sage)"}}> (meals prepaid)</span>}
+                </div>
+                <div style={{marginTop:10, display:"flex", gap:8}}>
+                  {MEAL_CHOICES.map(m => (
+                    <button key={m} type="button"
+                      className="btn sm"
+                      style={meal===m ? {background:"var(--marigold-500)",color:"var(--teal-900)"} : {background:"#fff",color:"var(--ink)",border:"1px solid var(--border)"}}
+                      onClick={()=>setMeal(p.MemberID, m)} disabled={!isIn}>
+                      {m}
+                    </button>
+                  ))}
+                </div>
+                <div style={{marginTop:10,fontSize:13,fontWeight:700,color:"var(--teal-900)"}}>Charge: ${charge}</div>
+              </div>
+            );
+          })}
+
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:18,marginBottom:10}}>
+            <div className="section-label" style={{margin:0}}>Guests (relatives only, non-members)</div>
+            <button className="btn ghost sm" type="button" onClick={addGuest}>+ Add Guest</button>
+          </div>
+          <p style={{color:"var(--muted)",fontSize:12,marginTop:-4}}>Adult (12+) = $20 \u00b7 Child (5\u201312) = $10 \u00b7 Under 5 = Free \u2014 only charged if a meal is selected.</p>
+
+          {guests.map(g => (
+            <div className="card" key={g.id} style={{marginBottom:10}}>
+              <div className="field" style={{marginBottom:8}}>
+                <label>Guest name</label>
+                <input value={g.Name} onChange={e=>updateGuest(g.id,{Name:e.target.value})} />
+              </div>
+              <div className="field" style={{marginBottom:8}}>
+                <label>Age group</label>
+                <select value={g.Tier} onChange={e=>updateGuest(g.id,{Tier:e.target.value})}>
+                  {GUEST_TIERS.map(t => <option key={t.key} value={t.key}>{t.label}</option>)}
+                </select>
+              </div>
+              <div style={{display:"flex",gap:8,marginBottom:8}}>
+                {MEAL_CHOICES.map(m => (
+                  <button key={m} type="button" className="btn sm"
+                    style={g.Meal===m ? {background:"var(--marigold-500)",color:"var(--teal-900)"} : {background:"#fff",color:"var(--ink)",border:"1px solid var(--border)"}}
+                    onClick={()=>updateGuest(g.id,{Meal:m})}>
+                    {m}
+                  </button>
+                ))}
+              </div>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div style={{fontSize:13,fontWeight:700,color:"var(--teal-900)"}}>Charge: ${guestCharge(g.Tier, g.Meal)}</div>
+                <button className="btn danger sm" type="button" onClick={()=>removeGuest(g.id)}>Remove</button>
+              </div>
             </div>
           ))}
-          <div className="field" style={{marginTop:16}}>
-            <label>Meal preference</label>
-            <input value={meal} onChange={e=>setMeal(e.target.value)} placeholder="e.g. Standard, Jain, none" />
+
+          <div className="card" style={{marginTop:16,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div style={{fontWeight:700}}>Estimated total</div>
+            <div style={{fontFamily:"'Newsreader',serif",fontSize:22,fontWeight:700,color:"var(--teal-900)"}}>${total}</div>
           </div>
-          <button className="btn gold btn-block" onClick={submit} disabled={submitting}>
+          <p style={{color:"var(--muted)",fontSize:11.5,marginTop:6}}>This is an estimate — the committee confirms your booking and payment separately.</p>
+
+          <button className="btn gold btn-block" style={{marginTop:6}} onClick={submit} disabled={submitting}>
             {submitting ? "Sending\u2026" : "Submit RSVP"}
           </button>
-        </div>
+        </React.Fragment>
       )}
     </div>
   );
