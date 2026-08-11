@@ -325,7 +325,7 @@ function RsvpTab({ member, family }) {
   const [guests, setGuests] = useState([]);          // [{id, Name, Tier, Meal}]
   const [submitting, setSubmitting] = useState(false);
 
-  const everyone = [{ MemberID: member.MemberID, Name: member.Name, AgeCategory: member.AgeCategory }, ...family];
+  const everyone = [{ MemberID: member.MemberID, Name: member.Name, AgeCategory: member.AgeCategory, MealPlan: member.MealPlan }, ...family];
 
   useEffect(() => {
     api("publicEvents", {}).then(r => setEvents(r.data)).catch(e => setError(e.message));
@@ -338,7 +338,7 @@ function RsvpTab({ member, family }) {
   const updateGuest = (id, patch) => setGuests(guests.map(g => g.id === id ? { ...g, ...patch } : g));
   const removeGuest = (id) => setGuests(guests.filter(g => g.id !== id));
 
-  const total = everyone.reduce((sum, p) => attending[p.MemberID] !== false ? sum + memberCharge(p.AgeCategory, member.MealPlan, mealChoice[p.MemberID]) : sum, 0)
+  const total = everyone.reduce((sum, p) => attending[p.MemberID] !== false ? sum + memberCharge(p.AgeCategory, p.MealPlan, mealChoice[p.MemberID]) : sum, 0)
     + guests.reduce((sum, g) => sum + guestCharge(g.Tier, g.Meal), 0);
 
   const submit = async () => {
@@ -391,8 +391,8 @@ function RsvpTab({ member, family }) {
           {everyone.map(p => {
             const isIn = attending[p.MemberID] !== false;
             const meal = mealChoice[p.MemberID] || "No Meal";
-            const charge = isIn ? memberCharge(p.AgeCategory, member.MealPlan, meal) : 0;
-            const isPaidPlan = member.MealPlan === "Yearly" || member.MealPlan === "Half-Yearly";
+            const charge = isIn ? memberCharge(p.AgeCategory, p.MealPlan, meal) : 0;
+            const isPaidPlan = p.MealPlan === "Yearly" || p.MealPlan === "Half-Yearly";
             return (
               <div className="card" key={p.MemberID} style={{marginBottom:10}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
@@ -409,7 +409,7 @@ function RsvpTab({ member, family }) {
                   </button>
                 </div>
                 <div style={{fontSize:12.5,color:"var(--muted)",marginTop:8}}>
-                  Meal plan: <strong style={{color:"var(--ink)"}}>{member.MealPlan || "Not set"}</strong>
+                  Meal plan: <strong style={{color:"var(--ink)"}}>{p.MealPlan || "Not set"}</strong>
                   {isPaidPlan && <span style={{color:"var(--sage)"}}> (meals prepaid)</span>}
                 </div>
                 <div style={{marginTop:10, display:"flex", gap:8}}>
