@@ -255,8 +255,9 @@ function Login({ onLogin }) {
       <div className="login-card">
         <div className="scallop"></div>
         <div className="login-body">
-          <h1>GGNZ Committee</h1>
-          <p className="sub">Sign in with your committee account</p>
+          <img src="ggnz-logo.png" alt="GGNZ logo" style={{width:72,height:72,display:"block",margin:"0 auto 14px"}} />
+          <h1 style={{textAlign:"center"}}>GGNZ Committee</h1>
+          <p className="sub" style={{textAlign:"center"}}>Sign in with your committee account</p>
           {error && <div className="error-msg">{error}</div>}
           <form onSubmit={submit}>
             <div className="field">
@@ -291,6 +292,7 @@ function Shell({ user, token, onLogout }) {
       <div className="topbar">
         <div className="tb-left">
           <button className="icon-btn" aria-label="Open menu" onClick={()=>setDrawerOpen(true)}>&#9776;</button>
+          <img src="ggnz-logo.png" alt="GGNZ logo" style={{width:26,height:26,borderRadius:"50%"}} />
           <span className="brand">GGNZ</span>
         </div>
         <div className="tb-right">
@@ -303,7 +305,10 @@ function Shell({ user, token, onLogout }) {
         <React.Fragment>
           <div className="drawer-overlay" onClick={()=>setDrawerOpen(false)}></div>
           <div className="drawer">
-            <div className="drawer-header"><div className="org">GGNZ</div><h1>Committee</h1></div>
+            <div className="drawer-header">
+              <img src="ggnz-logo.png" alt="GGNZ logo" style={{width:44,height:44,marginBottom:8}} />
+              <div className="org">GGNZ</div><h1>Committee</h1>
+            </div>
             <div className="scallop"></div>
             <nav className="drawer-nav">
               {NAV_ITEMS.map(item => (
