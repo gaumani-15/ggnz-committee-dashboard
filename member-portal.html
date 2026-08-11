@@ -277,7 +277,7 @@ function DetailsTab({ member, family }) {
     <div className="card">
       <div className="section-label">Membership</div>
       <div style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:"1px solid var(--border)"}}>
-        <span>Dues status</span><StatusBadge status={member.DuesStatus} />
+        <span>Status</span><StatusBadge status={member.DuesStatus} />
       </div>
       <div style={{display:"flex",justifyContent:"space-between",padding:"8px 0"}}>
         <span>Meal plan</span><strong>{member.MealPlan || "—"}</strong>
@@ -410,7 +410,7 @@ function RsvpTab({ member, family }) {
                   </button>
                 </div>
                 <div style={{fontSize:12.5,color:"var(--muted)",marginTop:8}}>
-                  Meal plan: <strong style={{color:"var(--ink)"}}>{p.MealPlan || "Not set"}</strong>
+                  Meal plan: <strong style={{color:"var(--ink)"}}>{p.MealPlan || "Per Event"}</strong>
                   {isPaidPlan && <span style={{color:"var(--sage)"}}> (meals prepaid)</span>}
                 </div>
                 <div style={{marginTop:10, display:"flex", gap:8}}>
@@ -463,10 +463,10 @@ function RsvpTab({ member, family }) {
           ))}
 
           <div className="card" style={{marginTop:16,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-            <div style={{fontWeight:700}}>Estimated total</div>
+            <div style={{fontWeight:700}}>Total Amount</div>
             <div style={{fontFamily:"'Newsreader',serif",fontSize:22,fontWeight:700,color:"var(--teal-900)"}}>${total}</div>
           </div>
-          <p style={{color:"var(--muted)",fontSize:11.5,marginTop:6}}>This is an estimate — the committee confirms your booking and payment separately.</p>
+          <p style={{color:"var(--muted)",fontSize:11.5,marginTop:6}}>The committee will confirm your booking once payment has been verified.</p>
 
           <button className="btn gold btn-block" style={{marginTop:6}} onClick={submit} disabled={submitting}>
             {submitting ? "Sending…" : "Submit RSVP"}
