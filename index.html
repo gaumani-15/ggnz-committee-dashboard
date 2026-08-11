@@ -408,6 +408,21 @@ function formatDate(d) {
   return parsed.toLocaleDateString("en-NZ", { day:"numeric", month:"short", year:"numeric" });
 }
 
+/**
+ * Guest bookings store Meal as "Guest • Adult • Standard" so the backend
+ * can compute the correct charge — but that's redundant to show in a
+ * table where the Name column already says "(Guest)". This just shows
+ * the actual meal choice.
+ */
+function displayMeal(meal) {
+  if (!meal) return "—";
+  if (meal.indexOf("Guest") === 0) {
+    const parts = meal.split("•").map(s => s.trim());
+    return parts[parts.length - 1] || meal;
+  }
+  return meal;
+}
+
 /* ============================================================
    DASHBOARD
    ============================================================ */
@@ -751,7 +766,7 @@ function Bookings({ token }) {
             <tbody>
               {rows.map(b => (
                 <tr key={b.BookingID}>
-                  <td>{b.Name}</td><td>{b.EventID}</td><td>{b.Meal}</td>
+                  <td>{b.Name}</td><td>{b.EventID}</td><td>{displayMeal(b.Meal)}</td>
                   <td><StatusBadge status={b.Status} /></td>
                   <td><StatusBadge status={b.PaymentStatus || "Pending"} /></td>
                   <td style={{whiteSpace:"nowrap"}}>
@@ -848,7 +863,7 @@ function Payments({ token }) {
             <tbody>
               {awaiting.map(b => (
                 <tr key={b.BookingID}>
-                  <td>{b.Name}</td><td>{b.EventID}</td><td>{b.Meal}</td>
+                  <td>{b.Name}</td><td>{b.EventID}</td><td>{displayMeal(b.Meal)}</td>
                   <td style={{whiteSpace:"nowrap"}}>
                     <button className="btn gold sm" onClick={()=>setConfirming(b)}>Mark Paid</button>
                   </td>
