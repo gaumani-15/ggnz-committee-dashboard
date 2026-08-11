@@ -277,7 +277,7 @@ function DetailsTab({ member, family }) {
     <div className="card">
       <div className="section-label">Membership</div>
       <div style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:"1px solid var(--border)"}}>
-        <span>Status</span><StatusBadge status={member.DuesStatus} />
+        <span>Dues status</span><StatusBadge status={member.DuesStatus} />
       </div>
       <div style={{display:"flex",justifyContent:"space-between",padding:"8px 0"}}>
         <span>Meal plan</span><strong>{member.MealPlan || "—"}</strong>
@@ -325,8 +325,16 @@ function RsvpTab({ member, family }) {
   const [mealChoice, setMealChoice] = useState({});  // MemberID -> meal string
   const [guests, setGuests] = useState([]);          // [{id, Name, Tier, Meal}]
   const [submitting, setSubmitting] = useState(false);
+  const messageRef = useRef(null);
 
-  const everyone = [{ MemberID: member.MemberID, Name: member.Name, AgeCategory: member.AgeCategory, MealPlan: member.MealPlan }, ...family];
+  useEffect(() => {
+    if ((success || error) && messageRef.current) {
+      messageRef.current.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [success, error]);
+
+  const everyone = [{ MemberID: member.MemberID, Name: member.Name, AgeCategory: member.AgeCategory, MealPlan: member.MealPlan, MembershipStatus: member.MembershipStatus }, ...family];
+  const isActive = p => !p.MembershipStatus || p.MembershipStatus === "Active";
 
   useEffect(() => {
     api("publicEvents", {}).then(r => setEvents(r.data)).catch(e => setError(e.message));
@@ -339,12 +347,12 @@ function RsvpTab({ member, family }) {
   const updateGuest = (id, patch) => setGuests(guests.map(g => g.id === id ? { ...g, ...patch } : g));
   const removeGuest = (id) => setGuests(guests.filter(g => g.id !== id));
 
-  const total = everyone.reduce((sum, p) => attending[p.MemberID] !== false ? sum + memberCharge(p.AgeCategory, p.MealPlan, mealChoice[p.MemberID]) : sum, 0)
+  const total = everyone.reduce((sum, p) => (isActive(p) && attending[p.MemberID] !== false) ? sum + memberCharge(p.AgeCategory, p.MealPlan, mealChoice[p.MemberID]) : sum, 0)
     + guests.reduce((sum, g) => sum + guestCharge(g.Tier, g.Meal), 0);
 
   const submit = async () => {
     setError(""); setSuccess("");
-    const party = everyone.filter(p => attending[p.MemberID] !== false);
+    const party = everyone.filter(p => isActive(p) && attending[p.MemberID] !== false);
     if (!selectedEvent) { setError("Choose an event first."); return; }
     if (party.length === 0 && guests.length === 0) { setError("Select at least one attendee, or add a guest."); return; }
     if (guests.some(g => !g.Name.trim())) { setError("Every guest needs a name."); return; }
@@ -373,8 +381,10 @@ function RsvpTab({ member, family }) {
 
   return (
     <div>
-      {success && <div className="success-msg">{success}</div>}
-      {error && <div className="error-msg">{error}</div>}
+      <div ref={messageRef}>
+        {success && <div className="success-msg">{success}</div>}
+        {error && <div className="error-msg">{error}</div>}
+      </div>
 
       <div className="section-label">Choose an event</div>
       {events.length === 0 ? (
@@ -390,10 +400,29 @@ function RsvpTab({ member, family }) {
         <React.Fragment>
           <div className="section-label" style={{marginTop:18}}>Members</div>
           {everyone.map(p => {
-            const isIn = attending[p.MemberID] !== false;
+            const active = isActive(p);
+            const isIn = active && attending[p.MemberID] !== false;
             const meal = mealChoice[p.MemberID] || "No Meal";
             const charge = isIn ? memberCharge(p.AgeCategory, p.MealPlan, meal) : 0;
             const isPaidPlan = p.MealPlan === "Yearly" || p.MealPlan === "Half-Yearly";
+
+            if (!active) {
+              return (
+                <div className="card" key={p.MemberID} style={{marginBottom:10, opacity:0.7}}>
+                  <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+                    <div>
+                      <div style={{fontWeight:700,fontFamily:"'Newsreader',serif",fontSize:16}}>{p.Name}</div>
+                      <div style={{color:"var(--muted)",fontSize:12}}>{p.MemberID}</div>
+                    </div>
+                    <span className="badge bad">Membership inactive</span>
+                  </div>
+                  <p style={{fontSize:12.5,color:"var(--muted)",marginTop:8,marginBottom:0}}>
+                    This membership is currently deactivated, so RSVPs can't be submitted. Contact the committee if this seems wrong.
+                  </p>
+                </div>
+              );
+            }
+
             return (
               <div className="card" key={p.MemberID} style={{marginBottom:10}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
@@ -429,7 +458,7 @@ function RsvpTab({ member, family }) {
           })}
 
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:18,marginBottom:10}}>
-            <div className="section-label" style={{margin:0}}>Guests (Non-members relatives only, Strictly No Friends, Please )</div>
+            <div className="section-label" style={{margin:0}}>Guests (relatives only, non-members)</div>
             <button className="btn ghost sm" type="button" onClick={addGuest}>+ Add Guest</button>
           </div>
           <p style={{color:"var(--muted)",fontSize:12,marginTop:-4}}>Adult (12+) = $20 · Child (5–12) = $10 · Under 5 = Free — only charged if a meal is selected.</p>
@@ -463,10 +492,10 @@ function RsvpTab({ member, family }) {
           ))}
 
           <div className="card" style={{marginTop:16,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-            <div style={{fontWeight:700}}>Total Amount</div>
+            <div style={{fontWeight:700}}>Estimated total</div>
             <div style={{fontFamily:"'Newsreader',serif",fontSize:22,fontWeight:700,color:"var(--teal-900)"}}>${total}</div>
           </div>
-          <p style={{color:"var(--muted)",fontSize:11.5,marginTop:6}}>The committee will confirm your booking once payment has been verified </p>
+          <p style={{color:"var(--muted)",fontSize:11.5,marginTop:6}}>This is an estimate — the committee confirms your booking and payment separately.</p>
 
           <button className="btn gold btn-block" style={{marginTop:6}} onClick={submit} disabled={submitting}>
             {submitting ? "Sending…" : "Submit RSVP"}
