@@ -548,7 +548,7 @@ function Membership({ token }) {
       <div className="list-card"><div className="scroll-x">
         {filtered.length === 0 ? <EmptyRow text="No members found" /> : (
           <table>
-            <thead><tr><th>ID</th><th>Name</th><th>DOB</th><th>Contact</th><th>Meal plan</th><th>Dues</th><th></th></tr></thead>
+            <thead><tr><th>ID</th><th>Name</th><th>DOB</th><th>Contact</th><th>Meal plan</th><th>Status</th><th>Dues</th><th></th></tr></thead>
             <tbody>
               {filtered.map(m => {
                 const dependents = rows.filter(r => r.FamilyGroup === m.MemberID);
@@ -563,6 +563,7 @@ function Membership({ token }) {
                     <td>{formatDate(m.DOB)}</td>
                     <td>{m.Email}<br/><span style={{color:"var(--muted)",fontSize:12}}>{m.Phone}</span></td>
                     <td>{m.MealPlan || "—"}</td>
+                    <td><StatusBadge status={m.MembershipStatus || "Active"} /></td>
                     <td><StatusBadge status={m.DuesStatus} /></td>
                     <td style={{whiteSpace:"nowrap"}}>
                       <button className="btn ghost sm" style={{marginRight:6}} onClick={()=>setEditing(m)}>Edit</button>
@@ -587,7 +588,8 @@ function MemberModal({ record, onClose, onSave }) {
   const [form, setForm] = useState({
     MemberID: record.MemberID || "", Name: record.Name || "", DOB: record.DOB ? String(record.DOB).slice(0,10) : "",
     Email: record.Email || "", Phone: record.Phone || "", FamilyGroup: record.FamilyGroup || "",
-    DuesStatus: record.DuesStatus || "Pending", MealPlan: record.MealPlan || "Yearly", Notes: record.Notes || ""
+    DuesStatus: record.DuesStatus || "Pending", MealPlan: record.MealPlan || "Yearly",
+    MembershipStatus: record.MembershipStatus || "Active", Notes: record.Notes || ""
   });
   const [familyMembers, setFamilyMembers] = useState([]);
   const set = k => e => setForm({ ...form, [k]: e.target.value });
@@ -608,6 +610,12 @@ function MemberModal({ record, onClose, onSave }) {
         <div className="field"><label>Date of birth</label><input type="date" value={form.DOB} onChange={set("DOB")} /></div>
         <div className="field"><label>Email</label><input value={form.Email} onChange={set("Email")} /></div>
         <div className="field"><label>Phone</label><input value={form.Phone} onChange={set("Phone")} /></div>
+        <div className="field">
+          <label>Membership status</label>
+          <select value={form.MembershipStatus} onChange={set("MembershipStatus")}>
+            <option>Active</option><option>Deactivated</option>
+          </select>
+        </div>
         <div className="field">
           <label>Membership dues (annual)</label>
           <select value={form.DuesStatus} onChange={set("DuesStatus")}>
