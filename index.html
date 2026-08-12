@@ -528,7 +528,9 @@ function Membership({ token }) {
       if (!fam.Name.trim()) continue;
       await api("saveMember", { record: JSON.stringify({
         Name: fam.Name, DOB: fam.DOB, Email: fam.Email, Phone: fam.Phone,
-        FamilyGroup: primaryId, DuesStatus: form.DuesStatus, MealPlan: form.MealPlan
+        FamilyGroup: primaryId, MealPlan: form.MealPlan,
+        MealPlanStartDate: form.MealPlanStartDate, MealPlanEndDate: form.MealPlanEndDate,
+        MembershipStatus: form.MembershipStatus
       }) }, token);
     }
     setEditing(null);
@@ -548,7 +550,7 @@ function Membership({ token }) {
       <div className="list-card"><div className="scroll-x">
         {filtered.length === 0 ? <EmptyRow text="No members found" /> : (
           <table>
-            <thead><tr><th>ID</th><th>Name</th><th>DOB</th><th>Contact</th><th>Meal plan</th><th>Status</th><th>Dues</th><th></th></tr></thead>
+            <thead><tr><th>ID</th><th>Name</th><th>DOB</th><th>Contact</th><th>Meal plan</th><th>Status</th><th></th></tr></thead>
             <tbody>
               {filtered.map(m => {
                 const dependents = rows.filter(r => r.FamilyGroup === m.MemberID);
@@ -564,7 +566,6 @@ function Membership({ token }) {
                     <td>{m.Email}<br/><span style={{color:"var(--muted)",fontSize:12}}>{m.Phone}</span></td>
                     <td>{m.MealPlan || "—"}</td>
                     <td><StatusBadge status={m.MembershipStatus || "Active"} /></td>
-                    <td><StatusBadge status={m.DuesStatus} /></td>
                     <td style={{whiteSpace:"nowrap"}}>
                       <button className="btn ghost sm" style={{marginRight:6}} onClick={()=>setEditing(m)}>Edit</button>
                       <button className="btn danger sm" onClick={()=>remove(m.MemberID)}>Remove</button>
@@ -588,7 +589,9 @@ function MemberModal({ record, onClose, onSave }) {
   const [form, setForm] = useState({
     MemberID: record.MemberID || "", Name: record.Name || "", DOB: record.DOB ? String(record.DOB).slice(0,10) : "",
     Email: record.Email || "", Phone: record.Phone || "", FamilyGroup: record.FamilyGroup || "",
-    DuesStatus: record.DuesStatus || "Pending", MealPlan: record.MealPlan || "Yearly",
+    MealPlan: record.MealPlan || "Yearly",
+    MealPlanStartDate: record.MealPlanStartDate ? String(record.MealPlanStartDate).slice(0,10) : "",
+    MealPlanEndDate: record.MealPlanEndDate ? String(record.MealPlanEndDate).slice(0,10) : "",
     MembershipStatus: record.MembershipStatus || "Active", Notes: record.Notes || ""
   });
   const [familyMembers, setFamilyMembers] = useState([]);
@@ -617,17 +620,17 @@ function MemberModal({ record, onClose, onSave }) {
           </select>
         </div>
         <div className="field">
-          <label>Membership dues (annual)</label>
-          <select value={form.DuesStatus} onChange={set("DuesStatus")}>
-            <option>Paid</option><option>Pending</option><option>Overdue</option>
-          </select>
-        </div>
-        <div className="field">
           <label>Meal payment plan</label>
           <select value={form.MealPlan} onChange={set("MealPlan")}>
             {MEAL_PLAN_OPTIONS.map(o => <option key={o}>{o}</option>)}
           </select>
         </div>
+        {(form.MealPlan === "Yearly" || form.MealPlan === "Half-Yearly") && (
+          <div style={{display:"flex",gap:10}}>
+            <div className="field" style={{flex:1}}><label>Plan start date</label><input type="date" value={form.MealPlanStartDate} onChange={set("MealPlanStartDate")} /></div>
+            <div className="field" style={{flex:1}}><label>Plan end date (renewal due)</label><input type="date" value={form.MealPlanEndDate} onChange={set("MealPlanEndDate")} /></div>
+          </div>
+        )}
         <div className="field"><label>Notes</label><input value={form.Notes} onChange={set("Notes")} /></div>
 
         {isNew && (
@@ -775,24 +778,28 @@ function Bookings({ token }) {
       <div className="list-card"><div className="scroll-x">
         {rows.length === 0 ? <EmptyRow text="No bookings yet" /> : (
           <table>
-            <thead><tr><th>Name</th><th>Event</th><th>Meal</th><th>Status</th><th>Payment</th><th></th></tr></thead>
+            <thead><tr><th>Name</th><th>Event</th><th>Meal</th><th>Booked by</th><th>Status</th><th>Payment</th><th></th></tr></thead>
             <tbody>
-              {rows.map(b => (
-                <tr key={b.BookingID}>
-                  <td>{b.Name}</td><td>{b.EventID}</td><td>{displayMeal(b.Meal)}</td>
-                  <td><StatusBadge status={b.Status} /></td>
-                  <td><StatusBadge status={b.PaymentStatus || "Pending"} /></td>
-                  <td style={{whiteSpace:"nowrap"}}>
-                    {(!b.PaymentStatus || b.PaymentStatus === "Pending") && (
-                      <button className="btn gold sm" style={{marginRight:6}} disabled={markingId===b.BookingID} onClick={()=>markPaid(b.BookingID)}>
-                        {markingId===b.BookingID ? "Marking…" : "Mark Paid"}
-                      </button>
-                    )}
-                    <button className="btn ghost sm" style={{marginRight:6}} onClick={()=>setEditing(b)}>Edit</button>
-                    <button className="btn danger sm" onClick={()=>remove(b.BookingID)}>Delete</button>
-                  </td>
-                </tr>
-              ))}
+              {rows.map(b => {
+                const isBooker = !b.BookedBy || String(b.BookedBy) === String(b.MemberID);
+                return (
+                  <tr key={b.BookingID}>
+                    <td>{b.Name}</td><td>{b.EventID}</td><td>{displayMeal(b.Meal)}</td>
+                    <td>{b.BookedBy || "—"}</td>
+                    <td><StatusBadge status={b.Status} /></td>
+                    <td><StatusBadge status={b.PaymentStatus || "Pending"} /></td>
+                    <td style={{whiteSpace:"nowrap"}}>
+                      {(!b.PaymentStatus || b.PaymentStatus === "Pending") && isBooker && (
+                        <button className="btn gold sm" style={{marginRight:6}} disabled={markingId===b.BookingID} onClick={()=>markPaid(b.BookingID)}>
+                          {markingId===b.BookingID ? "Marking…" : "Mark Paid"}
+                        </button>
+                      )}
+                      <button className="btn ghost sm" style={{marginRight:6}} onClick={()=>setEditing(b)}>Edit</button>
+                      <button className="btn danger sm" onClick={()=>remove(b.BookingID)}>Delete</button>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}
@@ -840,7 +847,7 @@ function Payments({ token }) {
   const [payments, setPayments] = useState(null);
   const [error, setError] = useState("");
   const [adding, setAdding] = useState(false);
-  const [confirming, setConfirming] = useState(null); // booking being marked paid
+  const [confirming, setConfirming] = useState(null); // { booking, groupSize }
 
   const load = useCallback(() => {
     Promise.all([
@@ -854,7 +861,7 @@ function Payments({ token }) {
   const savePayment = async (record) => { await api("savePayment", { record: JSON.stringify(record) }, token); setAdding(false); load(); };
   const confirmPayment = async (method) => {
     try {
-      await api("markBookingPaid", { id: confirming.BookingID, method }, token);
+      await api("markBookingPaid", { id: confirming.booking.BookingID, method }, token);
       setConfirming(null);
       load();
     } catch (e) { alert(e.message); }
@@ -864,24 +871,43 @@ function Payments({ token }) {
   if (!bookings || !payments) return <LoadingPanel />;
 
   const awaiting = bookings.filter(b => (b.PaymentStatus || "Pending") !== "Paid");
+  // Group by who did the booking, per event — a family RSVPs and pays together.
+  // Bookings without a BookedBy (e.g. added directly by the committee) are their own group.
+  const groupKey = b => b.EventID + "::" + (b.BookedBy || b.MemberID || b.BookingID);
+  const groupSizes = {};
+  awaiting.forEach(b => { const k = groupKey(b); groupSizes[k] = (groupSizes[k] || 0) + 1; });
+  const isBooker = b => !b.BookedBy || String(b.BookedBy) === String(b.MemberID);
+
   const total = payments.reduce((s,p)=> s + (parseFloat(p.Amount)||0), 0);
 
   return (
     <div>
       <div className="section-label" style={{marginTop:0}}>Awaiting payment</div>
+      <p style={{color:"var(--muted)",fontSize:12.5,marginTop:-6,marginBottom:14}}>
+        Families RSVP and pay together — Mark Paid appears once per booking, on whoever submitted it, and confirms everyone in that group at once.
+      </p>
       <div className="list-card" style={{marginBottom:22}}><div className="scroll-x">
         {awaiting.length === 0 ? <EmptyRow text="Nothing awaiting payment" /> : (
           <table>
             <thead><tr><th>Name</th><th>Event</th><th>Meal</th><th></th></tr></thead>
             <tbody>
-              {awaiting.map(b => (
-                <tr key={b.BookingID}>
-                  <td>{b.Name}</td><td>{b.EventID}</td><td>{displayMeal(b.Meal)}</td>
-                  <td style={{whiteSpace:"nowrap"}}>
-                    <button className="btn gold sm" onClick={()=>setConfirming(b)}>Mark Paid</button>
-                  </td>
-                </tr>
-              ))}
+              {awaiting.map(b => {
+                const size = groupSizes[groupKey(b)] || 1;
+                const showButton = isBooker(b);
+                return (
+                  <tr key={b.BookingID}>
+                    <td>{b.Name}{!showButton && <span style={{color:"var(--muted)",fontSize:11.5}}> (part of group)</span>}</td>
+                    <td>{b.EventID}</td><td>{displayMeal(b.Meal)}</td>
+                    <td style={{whiteSpace:"nowrap"}}>
+                      {showButton && (
+                        <button className="btn gold sm" onClick={()=>setConfirming({ booking: b, groupSize: size })}>
+                          Mark Paid{size > 1 ? " (" + size + ")" : ""}
+                        </button>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}
@@ -907,12 +933,12 @@ function Payments({ token }) {
         )}
       </div></div>
       {adding && <PaymentModal onClose={()=>setAdding(false)} onSave={savePayment} />}
-      {confirming && <ConfirmPaymentModal booking={confirming} onClose={()=>setConfirming(null)} onConfirm={confirmPayment} />}
+      {confirming && <ConfirmPaymentModal booking={confirming.booking} groupSize={confirming.groupSize} onClose={()=>setConfirming(null)} onConfirm={confirmPayment} />}
     </div>
   );
 }
 
-function ConfirmPaymentModal({ booking, onClose, onConfirm }) {
+function ConfirmPaymentModal({ booking, groupSize, onClose, onConfirm }) {
   const [method, setMethod] = useState("Cash");
   const [submitting, setSubmitting] = useState(false);
   const submit = async () => { setSubmitting(true); await onConfirm(method); setSubmitting(false); };
@@ -921,8 +947,11 @@ function ConfirmPaymentModal({ booking, onClose, onConfirm }) {
       <div className="modal" onClick={e=>e.stopPropagation()}>
         <h3>Confirm payment</h3>
         <p style={{color:"var(--muted)",fontSize:13.5,marginTop:-8}}>
-          This marks <strong>{booking.Name}</strong>'s booking for {booking.EventID} as Confirmed and Paid,
-          logs a payment record, and emails them a confirmation.
+          {groupSize > 1 ? (
+            <React.Fragment>This marks <strong>{booking.Name}</strong>'s booking and <strong>{groupSize - 1} other{groupSize - 1 === 1 ? "" : "s"}</strong> in their family's RSVP for {booking.EventID} as Confirmed and Paid, logs one combined payment record, and emails {booking.Name} a confirmation.</React.Fragment>
+          ) : (
+            <React.Fragment>This marks <strong>{booking.Name}</strong>'s booking for {booking.EventID} as Confirmed and Paid, logs a payment record, and emails them a confirmation.</React.Fragment>
+          )}
         </p>
         <div className="field">
           <label>Payment method</label>
@@ -1093,13 +1122,24 @@ function CheckIn({ token }) {
 function Reports({ token }) {
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
+  const [events, setEvents] = useState(null);
+  const [selectedEventId, setSelectedEventId] = useState("");
+  const [meal, setMeal] = useState(null);
+  const [mealError, setMealError] = useState("");
   const canvasRef1 = useRef(null);
   const canvasRef2 = useRef(null);
   const chartRefs = useRef([]);
 
   useEffect(() => {
     api("dashboardSummary", {}, token).then(r => setData(r.data)).catch(e => setError(e.message));
+    api("listEvents", {}, token).then(r => setEvents(r.data)).catch(()=>{});
   }, [token]);
+
+  useEffect(() => {
+    if (!selectedEventId) { setMeal(null); return; }
+    setMealError("");
+    api("mealReport", { eventId: selectedEventId }, token).then(r => setMeal(r.data)).catch(e => setMealError(e.message));
+  }, [selectedEventId, token]);
 
   useEffect(() => {
     if (!data) return;
@@ -1129,8 +1169,49 @@ function Reports({ token }) {
   if (error) return <ApiErrorPanel message={error} />;
   if (!data) return <LoadingPanel />;
 
+  const GROUP_LABELS = { adultMember: "Member (12+)", childMember: "Member (under 12)", adultGuest: "Guest (12+)", childGuest: "Guest (under 12)" };
+
   return (
     <div>
+      <div className="card" style={{marginBottom:16}}>
+        <h3 style={{marginTop:0}}>Catering / meal report</h3>
+        <p style={{color:"var(--muted)",fontSize:12.5,marginTop:-6}}>Pick an event to see exactly how many Standard, Jain, and No Meal to prepare — broken down by member vs. guest, adult vs. child.</p>
+        <div className="field" style={{marginBottom: selectedEventId ? 16 : 0}}>
+          <label>Event</label>
+          <select value={selectedEventId} onChange={e=>setSelectedEventId(e.target.value)}>
+            <option value="">Choose an event…</option>
+            {(events||[]).map(e => <option key={e.EventID} value={e.EventID}>{e.Name} ({e.EventID})</option>)}
+          </select>
+        </div>
+        {mealError && <div className="error-msg">{mealError}</div>}
+        {selectedEventId && !meal && !mealError && <div style={{color:"var(--muted)",fontSize:13}}>Loading…</div>}
+        {meal && (
+          <div className="scroll-x">
+            <table>
+              <thead><tr><th></th><th>Standard</th><th>Jain</th><th>No Meal</th><th>Total</th></tr></thead>
+              <tbody>
+                {Object.keys(GROUP_LABELS).map(g => (
+                  <tr key={g}>
+                    <td>{GROUP_LABELS[g]}</td>
+                    <td>{meal.groups[g].Standard}</td>
+                    <td>{meal.groups[g].Jain}</td>
+                    <td>{meal.groups[g]["No Meal"]}</td>
+                    <td style={{fontWeight:700}}>{meal.groups[g].total}</td>
+                  </tr>
+                ))}
+                <tr style={{borderTop:"2px solid var(--border)"}}>
+                  <td style={{fontWeight:700}}>Grand total</td>
+                  <td style={{fontWeight:700}}>{meal.grandTotal.Standard}</td>
+                  <td style={{fontWeight:700}}>{meal.grandTotal.Jain}</td>
+                  <td style={{fontWeight:700}}>{meal.grandTotal["No Meal"]}</td>
+                  <td style={{fontWeight:700}}>{meal.grandTotal.total}</td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+
       <div className="card" style={{marginBottom:16}}><h3 style={{marginTop:0}}>Activity overview</h3><canvas ref={canvasRef1} height="200"></canvas></div>
       <div className="card"><h3 style={{marginTop:0}}>Recent payments by method</h3><canvas ref={canvasRef2} height="200"></canvas></div>
     </div>
