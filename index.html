@@ -12,6 +12,7 @@
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+<script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
 
 <style>
   :root{
@@ -998,57 +999,95 @@ function PaymentModal({ onClose, onSave }) {
    CHECK-IN — search + manual check-in, camera scan where supported
    ============================================================ */
 function CheckIn({ token }) {
+  const [events, setEvents] = useState(null);
+  const [eventId, setEventId] = useState("");
+  const [bookings, setBookings] = useState([]);
   const [query, setQuery] = useState("");
-  const [results, setResults] = useState([]);
+  const [group, setGroup] = useState(null); // array of bookings in the selected group
   const [recent, setRecent] = useState([]);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
   const [scanning, setScanning] = useState(false);
+  const [checkingIn, setCheckingIn] = useState(false);
   const videoRef = useRef(null);
+  const canvasRef = useRef(null);
   const streamRef = useRef(null);
 
-  const loadRecent = useCallback(() => {
-    api("listCheckins", {}, token).then(r => setRecent(r.data.slice(-8).reverse())).catch(()=>{});
+  useEffect(() => {
+    api("listEvents", {}, token).then(r => setEvents(r.data)).catch(e => setError(e.message));
   }, [token]);
+
+  const loadRecent = useCallback(() => {
+    if (!eventId) { setRecent([]); return; }
+    api("listCheckins", {}, token).then(r => setRecent(r.data.filter(c => String(c.EventID) === String(eventId)).slice(-8).reverse())).catch(()=>{});
+  }, [eventId, token]);
   useEffect(loadRecent, [loadRecent]);
 
   useEffect(() => {
-    if (!query.trim()) { setResults([]); return; }
-    const t = setTimeout(() => {
-      api("findMember", { query }, token).then(r => setResults(r.data)).catch(e => setError(e.message));
-    }, 300);
-    return () => clearTimeout(t);
-  }, [query, token]);
+    setGroup(null); setQuery(""); setError(""); setNotice("");
+    if (!eventId) { setBookings([]); return; }
+    api("listBookings", {}, token).then(r => setBookings(r.data.filter(b => String(b.EventID) === String(eventId) && b.Status !== "Cancelled"))).catch(e => setError(e.message));
+  }, [eventId, token]);
 
-  const doCheckIn = async (memberId) => {
+  const groupKey = b => b.BookedBy || b.MemberID || b.BookingID;
+
+  const selectGroup = (booking) => {
+    const key = groupKey(booking);
+    const members = bookings.filter(b => groupKey(b) === key);
+    setGroup(members);
+    setQuery(""); setError(""); setNotice("");
+  };
+
+  const matches = useMemo(() => {
+    if (!query.trim() || !bookings.length) return [];
+    const q = query.trim().toLowerCase();
+    return bookings.filter(b => (b.Name||"").toLowerCase().includes(q) || (b.MemberID||"").toLowerCase().includes(q));
+  }, [query, bookings]);
+
+  const checkInGroupNow = async () => {
+    if (!group || !group.length) return;
+    setCheckingIn(true); setError(""); setNotice("");
     try {
-      await api("checkIn", { memberId }, token);
-      setQuery(""); setResults([]);
+      const created = await api("checkInGroup", { eventId, bookingIds: JSON.stringify(group.map(b => b.BookingID)) }, token);
+      const already = group.length - created.data.length;
+      setNotice(created.data.length + " checked in" + (already > 0 ? ` (${already} already checked in)` : ""));
+      setGroup(null);
       loadRecent();
     } catch (e) { setError(e.message); }
+    finally { setCheckingIn(false); }
+  };
+
+  const handleScanned = (value) => {
+    const found = bookings.find(b => String(b.MemberID).toLowerCase() === String(value).trim().toLowerCase());
+    if (found) { selectGroup(found); }
+    else { setError("No booking found for \u201c" + value + "\u201d in this event."); }
   };
 
   const startScan = async () => {
     setError("");
-    if (!("BarcodeDetector" in window)) {
-      setError("QR scanning isn't supported in this browser — search by name or Member ID instead.");
-      return;
-    }
+    if (!eventId) { setError("Choose an event first."); return; }
+    if (!window.jsQR) { setError("QR scanner didn't load — search by name or Member ID instead."); return; }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
       streamRef.current = stream;
       videoRef.current.srcObject = stream;
       await videoRef.current.play();
       setScanning(true);
-      const detector = new window.BarcodeDetector({ formats: ["qr_code"] });
-      const scanLoop = async () => {
-        if (!streamRef.current) return;
-        try {
-          const codes = await detector.detect(videoRef.current);
-          if (codes.length > 0) { stopScan(); doCheckIn(codes[0].rawValue); return; }
-        } catch (e) { /* keep trying */ }
-        requestAnimationFrame(scanLoop);
+      const loop = () => {
+        if (!streamRef.current || !videoRef.current) return;
+        const video = videoRef.current;
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+          const canvas = canvasRef.current;
+          canvas.width = video.videoWidth; canvas.height = video.videoHeight;
+          const ctx = canvas.getContext("2d");
+          ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const code = window.jsQR(imageData.data, imageData.width, imageData.height);
+          if (code && code.data) { stopScan(); handleScanned(code.data); return; }
+        }
+        requestAnimationFrame(loop);
       };
-      scanLoop();
+      loop();
     } catch (e) {
       setError("Couldn't access the camera — check permissions, or search manually instead.");
     }
@@ -1069,48 +1108,84 @@ function CheckIn({ token }) {
         <p>Scan a QR code or search by name / Member ID</p>
       </div>
 
-      {error && <div className="error-msg">{error}</div>}
-
-      {!scanning ? (
-        <button className="btn gold btn-block" style={{marginBottom:16}} onClick={startScan}>📷 Start camera scan</button>
-      ) : (
-        <div style={{marginBottom:16}}>
-          <video ref={videoRef} style={{width:"100%",borderRadius:10,background:"#000"}} muted playsInline></video>
-          <button className="btn ghost btn-block" style={{marginTop:8}} onClick={stopScan}>Stop scanning</button>
-        </div>
-      )}
-
       <div className="field">
-        <label>Search by name or Member ID</label>
-        <input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="e.g. GGNZ-0001 or Priya" />
+        <label>Event</label>
+        <select value={eventId} onChange={e=>setEventId(e.target.value)}>
+          <option value="">Choose an event…</option>
+          {(events||[]).map(e => <option key={e.EventID} value={e.EventID}>{e.Name} ({e.EventID})</option>)}
+        </select>
       </div>
 
-      {results.length > 0 && (
-        <div className="list-card" style={{marginBottom:20}}>
-          <table>
-            <tbody>
-              {results.map(m => (
-                <tr key={m.MemberID}>
-                  <td>{m.Name}<br/><span style={{color:"var(--muted)",fontSize:12}}>{m.MemberID}</span></td>
-                  <td style={{textAlign:"right"}}><button className="btn gold sm" onClick={()=>doCheckIn(m.MemberID)}>Check in</button></td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      )}
+      {!eventId && <p style={{color:"var(--muted)",fontSize:13}}>Pick an event above to start checking people in.</p>}
 
-      <div className="section-label">Recent check-ins</div>
-      {recent.length === 0 ? <EmptyRow text="No check-ins yet today" /> : (
-        <div className="list-card">
-          <table>
-            <tbody>
-              {recent.map((c,i) => (
-                <tr key={i}><td>{c.Name}</td><td style={{color:"var(--muted)",fontSize:12}}>{new Date(c.Timestamp).toLocaleTimeString()}</td></tr>
+      {eventId && (
+        <React.Fragment>
+          {error && <div className="error-msg">{error}</div>}
+          {notice && <div className="success-msg">{notice}</div>}
+
+          {!scanning ? (
+            <button className="btn gold btn-block" style={{marginBottom:16}} onClick={startScan}>📷 Start camera scan</button>
+          ) : (
+            <div style={{marginBottom:16}}>
+              <video ref={videoRef} style={{width:"100%",borderRadius:10,background:"#000"}} muted playsInline></video>
+              <canvas ref={canvasRef} style={{display:"none"}}></canvas>
+              <button className="btn ghost btn-block" style={{marginTop:8}} onClick={stopScan}>Stop scanning</button>
+            </div>
+          )}
+
+          <div className="field">
+            <label>Search by name or Member ID</label>
+            <input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="e.g. GGNZ-0001 or Priya" />
+          </div>
+
+          {matches.length > 0 && !group && (
+            <div className="list-card" style={{marginBottom:20}}>
+              <table>
+                <tbody>
+                  {matches.map(b => (
+                    <tr key={b.BookingID}>
+                      <td>{b.Name}<br/><span style={{color:"var(--muted)",fontSize:12}}>{b.MemberID || "Guest"}</span></td>
+                      <td style={{textAlign:"right"}}><button className="btn gold sm" onClick={()=>selectGroup(b)}>Select</button></td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {group && (
+            <div className="card" style={{marginBottom:20}}>
+              <div className="section-label" style={{marginTop:0}}>Checking in {group.length} {group.length===1 ? "person" : "people"}</div>
+              {group.map(b => (
+                <div key={b.BookingID} className="family-row">
+                  <div>
+                    <strong>{b.Name}</strong>
+                    <div style={{color:"var(--muted)",fontSize:12}}>{b.MemberID || "Guest"} · Meal: {displayMeal(b.Meal)}</div>
+                  </div>
+                </div>
               ))}
-            </tbody>
-          </table>
-        </div>
+              <div style={{display:"flex",gap:8,marginTop:14}}>
+                <button className="btn ghost" onClick={()=>setGroup(null)}>Cancel</button>
+                <button className="btn gold" style={{flex:1}} onClick={checkInGroupNow} disabled={checkingIn}>
+                  {checkingIn ? "Checking in\u2026" : "Check In All"}
+                </button>
+              </div>
+            </div>
+          )}
+
+          <div className="section-label">Recent check-ins</div>
+          {recent.length === 0 ? <EmptyRow text="No check-ins yet for this event" /> : (
+            <div className="list-card">
+              <table>
+                <tbody>
+                  {recent.map((c,i) => (
+                    <tr key={i}><td>{c.Name}</td><td style={{color:"var(--muted)",fontSize:12}}>{new Date(c.Timestamp).toLocaleTimeString()}</td></tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </React.Fragment>
       )}
     </div>
   );
