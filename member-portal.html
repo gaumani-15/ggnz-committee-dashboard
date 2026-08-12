@@ -273,15 +273,21 @@ function MemberHome({ data, memberId, onSignOut }) {
 }
 
 function DetailsTab({ member, family }) {
+  const showDates = (member.MealPlan === "Yearly" || member.MealPlan === "Half-Yearly") && (member.MealPlanStartDate || member.MealPlanEndDate);
   return (
     <div className="card">
       <div className="section-label">Membership</div>
       <div style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:"1px solid var(--border)"}}>
-        <span>Dues status</span><StatusBadge status={member.DuesStatus} />
+        <span>Membership status</span><StatusBadge status={member.MembershipStatus || "Active"} />
       </div>
-      <div style={{display:"flex",justifyContent:"space-between",padding:"8px 0"}}>
+      <div style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom: showDates ? "1px solid var(--border)" : "none"}}>
         <span>Meal plan</span><strong>{member.MealPlan || "—"}</strong>
       </div>
+      {showDates && (
+        <div style={{padding:"8px 0",fontSize:12.5,color:"var(--muted)"}}>
+          Valid {formatDate(member.MealPlanStartDate)} – {formatDate(member.MealPlanEndDate)}
+        </div>
+      )}
       {family.length > 0 && (
         <React.Fragment>
           <div className="section-label" style={{marginTop:18}}>Family members</div>
@@ -361,13 +367,13 @@ function RsvpTab({ member, family }) {
       for (const p of party) {
         await api("publicBooking", { record: JSON.stringify({
           EventID: selectedEvent.EventID, MemberID: p.MemberID, Name: p.Name,
-          Party: 1, Meal: mealChoice[p.MemberID] || "No Meal"
+          Party: 1, Meal: mealChoice[p.MemberID] || "No Meal", BookedBy: member.MemberID
         }) });
       }
       for (const g of guests) {
         await api("publicBooking", { record: JSON.stringify({
           EventID: selectedEvent.EventID, MemberID: "", Name: g.Name + " (Guest)",
-          Party: 1, Meal: "Guest • " + g.Tier + " • " + (g.Meal || "No Meal")
+          Party: 1, Meal: "Guest • " + g.Tier + " • " + (g.Meal || "No Meal"), BookedBy: member.MemberID
         }) });
       }
       setSuccess("RSVP sent! The committee will confirm and follow up on payment.");
