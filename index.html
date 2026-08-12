@@ -395,6 +395,13 @@ function StatusBadge({ status }) {
   const cls = ["confirmed","paid","active","planned"].includes(s) ? "ok" : s === "pending" ? "pending" : "bad";
   return <span className={"badge " + cls}>{status || "—"}</span>;
 }
+function MealBadge({ meal }) {
+  const label = displayMeal(meal);
+  let style = { background: "var(--border)", color: "var(--muted)" }; // No Meal / unset — grey
+  if (label === "Standard") style = { background: "var(--marigold-100)", color: "var(--marigold-600)" }; // orange
+  else if (label === "Jain") style = { background: "var(--sage-bg)", color: "var(--sage)" }; // green
+  return <span className="badge" style={style}>{label}</span>;
+}
 function EmptyRow({ text }) { return <div className="empty-state"><div className="icon">—</div>{text}</div>; }
 function LoadingPanel() { return <div className="empty-state">Loading…</div>; }
 function ApiErrorPanel({ message }) {
@@ -1157,11 +1164,12 @@ function CheckIn({ token }) {
             <div className="card" style={{marginBottom:20}}>
               <div className="section-label" style={{marginTop:0}}>Checking in {group.length} {group.length===1 ? "person" : "people"}</div>
               {group.map(b => (
-                <div key={b.BookingID} className="family-row">
+                <div key={b.BookingID} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 0",borderBottom:"1px solid var(--border)"}}>
                   <div>
                     <strong>{b.Name}</strong>
-                    <div style={{color:"var(--muted)",fontSize:12}}>{b.MemberID || "Guest"} · Meal: {displayMeal(b.Meal)}</div>
+                    <div style={{color:"var(--muted)",fontSize:12}}>{b.MemberID || "Guest"}</div>
                   </div>
+                  <MealBadge meal={b.Meal} />
                 </div>
               ))}
               <div style={{display:"flex",gap:8,marginTop:14}}>
