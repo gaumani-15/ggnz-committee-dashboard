@@ -1142,15 +1142,14 @@ function CheckIn({ token }) {
           {error && <div className="error-msg">{error}</div>}
           {notice && <div className="success-msg">{notice}</div>}
 
-          {!scanning ? (
+          {!scanning && (
             <button className="btn gold btn-block" style={{marginBottom:16}} onClick={startScan}>📷 Start camera scan</button>
-          ) : (
-            <div style={{marginBottom:16}}>
-              <video ref={videoRef} style={{width:"100%",borderRadius:10,background:"#000"}} muted playsInline></video>
-              <canvas ref={canvasRef} style={{display:"none"}}></canvas>
-              <button className="btn ghost btn-block" style={{marginTop:8}} onClick={stopScan}>Stop scanning</button>
-            </div>
           )}
+          <div style={{marginBottom: scanning ? 16 : 0, display: scanning ? "block" : "none"}}>
+            <video ref={videoRef} style={{width:"100%",borderRadius:10,background:"#000"}} muted playsInline></video>
+            <button className="btn ghost btn-block" style={{marginTop:8}} onClick={stopScan}>Stop scanning</button>
+          </div>
+          <canvas ref={canvasRef} style={{display:"none"}}></canvas>
 
           <div className="field">
             <label>Search by name or Member ID</label>
