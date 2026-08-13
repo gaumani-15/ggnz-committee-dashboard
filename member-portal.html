@@ -356,30 +356,43 @@ function RsvpTab({ member, family }) {
   const total = everyone.reduce((sum, p) => (isActive(p) && attending[p.MemberID] !== false) ? sum + memberCharge(p.AgeCategory, p.MealPlan, mealChoice[p.MemberID]) : sum, 0)
     + guests.reduce((sum, g) => sum + guestCharge(g.Tier, g.Meal), 0);
 
+  const submittingRef = useRef(false); // synchronous guard — catches double-taps React state can't catch in time
+
   const submit = async () => {
+    if (submittingRef.current) return;
     setError(""); setSuccess("");
     const party = everyone.filter(p => isActive(p) && attending[p.MemberID] !== false);
     if (!selectedEvent) { setError("Choose an event first."); return; }
     if (party.length === 0 && guests.length === 0) { setError("Select at least one attendee, or add a guest."); return; }
     if (guests.some(g => !g.Name.trim())) { setError("Every guest needs a name."); return; }
+
+    submittingRef.current = true;
     setSubmitting(true);
     try {
-      for (const p of party) {
-        await api("publicBooking", { record: JSON.stringify({
+      const records = [
+        ...party.map(p => ({
           EventID: selectedEvent.EventID, MemberID: p.MemberID, Name: p.Name,
           Party: 1, Meal: mealChoice[p.MemberID] || "No Meal", BookedBy: member.MemberID
-        }) });
-      }
-      for (const g of guests) {
-        await api("publicBooking", { record: JSON.stringify({
+        })),
+        ...guests.map(g => ({
           EventID: selectedEvent.EventID, MemberID: "", Name: g.Name + " (Guest)",
           Party: 1, Meal: "Guest • " + g.Tier + " • " + (g.Meal || "No Meal"), BookedBy: member.MemberID
-        }) });
+        }))
+      ];
+      const res = await api("publicBookingBatch", { records: JSON.stringify(records) });
+      const { created, skipped } = res.data;
+
+      if (created.length > 0 && skipped.length === 0) {
+        setSuccess("RSVP sent for " + created.length + (created.length===1?" person":" people") + "! The committee will confirm and follow up on payment.");
+      } else if (created.length > 0 && skipped.length > 0) {
+        setSuccess("RSVP sent for " + created.length + (created.length===1?" person":" people") + ". " +
+          skipped.map(s => s.name + " was skipped (" + s.reason + ")").join("; ") + ".");
+      } else {
+        setError("Nothing was submitted — " + skipped.map(s => s.name + ": " + s.reason).join("; "));
       }
-      setSuccess("RSVP sent! The committee will confirm and follow up on payment.");
       setAttending({}); setMealChoice({}); setGuests([]); setSelectedEvent(null);
     } catch (e) { setError(e.message); }
-    finally { setSubmitting(false); }
+    finally { setSubmitting(false); submittingRef.current = false; }
   };
 
   if (error && !events) return <div className="error-msg">{error}</div>;
