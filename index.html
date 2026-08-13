@@ -1073,7 +1073,11 @@ function CheckIn({ token }) {
   const startScan = async () => {
     setError("");
     if (!eventId) { setError("Choose an event first."); return; }
-    if (!window.jsQR) { setError("QR scanner didn't load — search by name or Member ID instead."); return; }
+    if (!window.jsQR) { setError("QR scanner didn't load — check your internet connection and try again, or search manually instead."); return; }
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+      setError("This browser doesn't expose camera access here (navigator.mediaDevices is missing) — try opening this page directly in Safari or Chrome rather than an in-app browser, or search manually instead.");
+      return;
+    }
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
       streamRef.current = stream;
@@ -1096,7 +1100,15 @@ function CheckIn({ token }) {
       };
       loop();
     } catch (e) {
-      setError("Couldn't access the camera — check permissions, or search manually instead.");
+      const name = e && e.name ? e.name : "Error";
+      const hint = name === "NotAllowedError"
+        ? "Camera permission was denied — check Settings → Safari → Camera (or the site's permissions) and allow access, then reload."
+        : name === "NotFoundError"
+        ? "No camera was found on this device."
+        : name === "NotReadableError"
+        ? "Another app may already be using the camera — close it and try again."
+        : "Check camera permissions for this site, or search manually instead.";
+      setError("Couldn't access the camera (" + name + "). " + hint);
     }
   };
 
