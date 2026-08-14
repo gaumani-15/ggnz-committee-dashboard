@@ -353,7 +353,7 @@ function RsvpTab({ member, family }) {
   const updateGuest = (id, patch) => setGuests(guests.map(g => g.id === id ? { ...g, ...patch } : g));
   const removeGuest = (id) => setGuests(guests.filter(g => g.id !== id));
 
-  const total = everyone.reduce((sum, p) => (isActive(p) && attending[p.MemberID] !== false) ? sum + memberCharge(p.AgeCategory, p.MealPlan, mealChoice[p.MemberID]) : sum, 0)
+  const total = everyone.reduce((sum, p) => (isActive(p) && attending[p.MemberID] === true) ? sum + memberCharge(p.AgeCategory, p.MealPlan, mealChoice[p.MemberID]) : sum, 0)
     + guests.reduce((sum, g) => sum + guestCharge(g.Tier, g.Meal), 0);
 
   const submittingRef = useRef(false); // synchronous guard — catches double-taps React state can't catch in time
@@ -361,7 +361,7 @@ function RsvpTab({ member, family }) {
   const submit = async () => {
     if (submittingRef.current) return;
     setError(""); setSuccess("");
-    const party = everyone.filter(p => isActive(p) && attending[p.MemberID] !== false);
+    const party = everyone.filter(p => isActive(p) && attending[p.MemberID] === true);
     if (!selectedEvent) { setError("Choose an event first."); return; }
     if (party.length === 0 && guests.length === 0) { setError("Select at least one attendee, or add a guest."); return; }
     if (guests.some(g => !g.Name.trim())) { setError("Every guest needs a name."); return; }
@@ -420,7 +420,7 @@ function RsvpTab({ member, family }) {
           <div className="section-label" style={{marginTop:18}}>Members</div>
           {everyone.map(p => {
             const active = isActive(p);
-            const isIn = active && attending[p.MemberID] !== false;
+            const isIn = active && attending[p.MemberID] === true;
             const meal = mealChoice[p.MemberID] || "No Meal";
             const charge = isIn ? memberCharge(p.AgeCategory, p.MealPlan, meal) : 0;
             const isPaidPlan = p.MealPlan === "Yearly" || p.MealPlan === "Half-Yearly";
@@ -443,10 +443,10 @@ function RsvpTab({ member, family }) {
             }
 
             return (
-              <div className="card" key={p.MemberID} style={{marginBottom:10}}>
+              <div className="card" key={p.MemberID} style={{marginBottom:10, opacity: isIn ? 1 : 0.6, transition:"opacity .15s"}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
                   <div>
-                    <div style={{fontWeight:700,fontFamily:"'Newsreader',serif",fontSize:16}}>{p.Name}</div>
+                    <div style={{fontWeight:700,fontFamily:"'Newsreader',serif",fontSize:16,textDecoration: isIn ? "none" : "line-through",color: isIn ? "var(--ink)" : "var(--muted)"}}>{p.Name}</div>
                     <div style={{color:"var(--muted)",fontSize:12}}>{p.MemberID} · {p.AgeCategory || "Age unknown"}</div>
                   </div>
                   <button
