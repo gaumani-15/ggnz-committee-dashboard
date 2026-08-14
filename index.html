@@ -1055,13 +1055,21 @@ function CheckIn({ token }) {
     return bookings.filter(b => (b.Name||"").toLowerCase().includes(q) || (b.MemberID||"").toLowerCase().includes(q));
   }, [query, bookings]);
 
+  const isEligible = b => b.Status === "Confirmed" && (b.PaymentStatus || "Pending") === "Paid";
+
   const checkInGroupNow = async () => {
     if (!group || !group.length) return;
+    const eligibleIds = group.filter(isEligible).map(b => b.BookingID);
+    if (eligibleIds.length === 0) { setError("Nobody in this group is eligible to check in yet — RSVPs need to be Confirmed and Paid first."); return; }
     setCheckingIn(true); setError(""); setNotice("");
     try {
-      const created = await api("checkInGroup", { eventId, bookingIds: JSON.stringify(group.map(b => b.BookingID)) }, token);
-      const already = group.length - created.data.length;
-      setNotice(created.data.length + " checked in" + (already > 0 ? ` (${already} already checked in)` : ""));
+      const res = await api("checkInGroup", { eventId, bookingIds: JSON.stringify(eligibleIds) }, token);
+      const { created, blocked } = res.data;
+      const already = eligibleIds.length - created.length - blocked.length;
+      let msg = created.length + " checked in";
+      if (already > 0) msg += ` (${already} already checked in)`;
+      if (blocked.length > 0) msg += ". " + blocked.map(b => b.name + ": " + b.reason).join("; ");
+      setNotice(msg);
       setGroup(null);
       loadRecent();
     } catch (e) { setError(e.message); }
@@ -1184,27 +1192,35 @@ function CheckIn({ token }) {
             <div className="card" style={{marginBottom:20}}>
               <div className="section-label" style={{marginTop:0}}>Checking in {group.length} {group.length===1 ? "person" : "people"}</div>
               {group.length === 0 && <p style={{color:"var(--muted)",fontSize:13}}>Everyone's been removed — cancel, or search/scan again.</p>}
-              {group.map(b => (
-                <div key={b.BookingID} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 0",borderBottom:"1px solid var(--border)"}}>
-                  <div>
-                    <strong>{b.Name}</strong>
-                    <div style={{color:"var(--muted)",fontSize:12}}>{b.MemberID || "Guest"}</div>
+              {group.map(b => {
+                const eligible = isEligible(b);
+                return (
+                  <div key={b.BookingID} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 0",borderBottom:"1px solid var(--border)",opacity:eligible?1:0.7}}>
+                    <div>
+                      <strong>{b.Name}</strong>
+                      <div style={{color:"var(--muted)",fontSize:12}}>{b.MemberID || "Guest"}</div>
+                    </div>
+                    <div style={{display:"flex",alignItems:"center",gap:10}}>
+                      {eligible ? <MealBadge meal={b.Meal} /> : (
+                        <span className="badge bad">{b.Status !== "Confirmed" ? "Not confirmed" : "Payment pending"}</span>
+                      )}
+                      <button
+                        className="icon-btn"
+                        style={{color:"var(--plum)",fontSize:16,padding:"2px 4px"}}
+                        title={"Remove " + b.Name + " (not attending)"}
+                        onClick={()=>setGroup(group.filter(x => x.BookingID !== b.BookingID))}
+                      >&#10005;</button>
+                    </div>
                   </div>
-                  <div style={{display:"flex",alignItems:"center",gap:10}}>
-                    <MealBadge meal={b.Meal} />
-                    <button
-                      className="icon-btn"
-                      style={{color:"var(--plum)",fontSize:16,padding:"2px 4px"}}
-                      title={"Remove " + b.Name + " (not attending)"}
-                      onClick={()=>setGroup(group.filter(x => x.BookingID !== b.BookingID))}
-                    >&#10005;</button>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
+              {group.some(b => !isEligible(b)) && (
+                <p style={{color:"var(--muted)",fontSize:11.5,marginTop:10,marginBottom:0}}>People marked "Not confirmed" or "Payment pending" won't be checked in — confirm and mark their booking Paid in Payments first, or remove them from this list.</p>
+              )}
               <div style={{display:"flex",gap:8,marginTop:14}}>
                 <button className="btn ghost" onClick={()=>setGroup(null)}>Cancel</button>
                 <button className="btn gold" style={{flex:1}} onClick={checkInGroupNow} disabled={checkingIn || group.length===0}>
-                  {checkingIn ? "Checking in\u2026" : "Check In All"}
+                  {checkingIn ? "Checking in\u2026" : "Check In All (" + group.filter(isEligible).length + ")"}
                 </button>
               </div>
             </div>
