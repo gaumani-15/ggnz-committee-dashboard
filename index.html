@@ -1016,6 +1016,7 @@ function CheckIn({ token }) {
   const [notice, setNotice] = useState("");
   const [scanning, setScanning] = useState(false);
   const [checkingIn, setCheckingIn] = useState(false);
+  const [bookingsLoaded, setBookingsLoaded] = useState(false);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
@@ -1031,9 +1032,12 @@ function CheckIn({ token }) {
   useEffect(loadRecent, [loadRecent]);
 
   useEffect(() => {
-    setGroup(null); setQuery(""); setError(""); setNotice("");
+    setGroup(null); setQuery(""); setError(""); setNotice(""); setBookingsLoaded(false);
     if (!eventId) { setBookings([]); return; }
-    api("listBookings", {}, token).then(r => setBookings(r.data.filter(b => String(b.EventID) === String(eventId) && b.Status !== "Cancelled"))).catch(e => setError(e.message));
+    api("listBookings", {}, token).then(r => {
+      setBookings(r.data.filter(b => String(b.EventID) === String(eventId) && b.Status !== "Cancelled"));
+      setBookingsLoaded(true);
+    }).catch(e => { setError(e.message); setBookingsLoaded(true); });
   }, [eventId, token]);
 
   const groupKey = b => b.BookedBy || b.MemberID || b.BookingID;
@@ -1064,10 +1068,13 @@ function CheckIn({ token }) {
     finally { setCheckingIn(false); }
   };
 
-  const handleScanned = (value) => {
-    const found = bookings.find(b => String(b.MemberID).toLowerCase() === String(value).trim().toLowerCase());
-    if (found) { selectGroup(found); }
-    else { setError("No booking found for \u201c" + value + "\u201d in this event."); }
+  const handleScanned = async (value) => {
+    setError(""); setNotice("");
+    try {
+      const res = await api("checkInLookup", { eventId, memberId: value }, token);
+      setGroup(res.data);
+      setQuery("");
+    } catch (e) { setError(e.message); }
   };
 
   const startScan = async () => {
@@ -1143,7 +1150,9 @@ function CheckIn({ token }) {
           {notice && <div className="success-msg">{notice}</div>}
 
           {!scanning && (
-            <button className="btn gold btn-block" style={{marginBottom:16}} onClick={startScan}>📷 Start camera scan</button>
+            <button className="btn gold btn-block" style={{marginBottom:16}} onClick={startScan} disabled={!bookingsLoaded}>
+              {bookingsLoaded ? "📷 Start camera scan" : "Loading bookings\u2026"}
+            </button>
           )}
           <div style={{marginBottom: scanning ? 16 : 0, display: scanning ? "block" : "none"}}>
             <video ref={videoRef} style={{width:"100%",borderRadius:10,background:"#000"}} muted playsInline></video>
@@ -1153,7 +1162,7 @@ function CheckIn({ token }) {
 
           <div className="field">
             <label>Search by name or Member ID</label>
-            <input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="e.g. GGNZ-0001 or Priya" />
+            <input type="search" value={query} onChange={e=>setQuery(e.target.value)} placeholder="e.g. GGNZ-0001 or Priya" disabled={!bookingsLoaded} />
           </div>
 
           {matches.length > 0 && !group && (
@@ -1174,18 +1183,27 @@ function CheckIn({ token }) {
           {group && (
             <div className="card" style={{marginBottom:20}}>
               <div className="section-label" style={{marginTop:0}}>Checking in {group.length} {group.length===1 ? "person" : "people"}</div>
+              {group.length === 0 && <p style={{color:"var(--muted)",fontSize:13}}>Everyone's been removed — cancel, or search/scan again.</p>}
               {group.map(b => (
                 <div key={b.BookingID} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"9px 0",borderBottom:"1px solid var(--border)"}}>
                   <div>
                     <strong>{b.Name}</strong>
                     <div style={{color:"var(--muted)",fontSize:12}}>{b.MemberID || "Guest"}</div>
                   </div>
-                  <MealBadge meal={b.Meal} />
+                  <div style={{display:"flex",alignItems:"center",gap:10}}>
+                    <MealBadge meal={b.Meal} />
+                    <button
+                      className="icon-btn"
+                      style={{color:"var(--plum)",fontSize:16,padding:"2px 4px"}}
+                      title={"Remove " + b.Name + " (not attending)"}
+                      onClick={()=>setGroup(group.filter(x => x.BookingID !== b.BookingID))}
+                    >&#10005;</button>
+                  </div>
                 </div>
               ))}
               <div style={{display:"flex",gap:8,marginTop:14}}>
                 <button className="btn ghost" onClick={()=>setGroup(null)}>Cancel</button>
-                <button className="btn gold" style={{flex:1}} onClick={checkInGroupNow} disabled={checkingIn}>
+                <button className="btn gold" style={{flex:1}} onClick={checkInGroupNow} disabled={checkingIn || group.length===0}>
                   {checkingIn ? "Checking in\u2026" : "Check In All"}
                 </button>
               </div>
@@ -1220,6 +1238,13 @@ function Reports({ token }) {
   const [selectedEventId, setSelectedEventId] = useState("");
   const [meal, setMeal] = useState(null);
   const [mealError, setMealError] = useState("");
+  const [fyYear, setFyYear] = useState(() => {
+    const now = new Date();
+    // NZ financial year runs Apr–Mar; if we're Jan–Mar, we're still in last year's FY
+    return now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+  });
+  const [attendance, setAttendance] = useState(null);
+  const [attendanceError, setAttendanceError] = useState("");
   const canvasRef1 = useRef(null);
   const canvasRef2 = useRef(null);
   const chartRefs = useRef([]);
@@ -1234,6 +1259,11 @@ function Reports({ token }) {
     setMealError("");
     api("mealReport", { eventId: selectedEventId }, token).then(r => setMeal(r.data)).catch(e => setMealError(e.message));
   }, [selectedEventId, token]);
+
+  useEffect(() => {
+    setAttendanceError("");
+    api("attendanceReport", { fyStartYear: fyYear }, token).then(r => setAttendance(r.data)).catch(e => setAttendanceError(e.message));
+  }, [fyYear, token]);
 
   useEffect(() => {
     if (!data) return;
@@ -1303,6 +1333,40 @@ function Reports({ token }) {
               </tbody>
             </table>
           </div>
+        )}
+      </div>
+
+      <div className="card" style={{marginBottom:16}}>
+        <h3 style={{marginTop:0}}>Attendance frequency</h3>
+        <p style={{color:"var(--muted)",fontSize:12.5,marginTop:-6}}>How many events each person checked into within a financial year (NZ default: 1 April – 31 March).</p>
+        <div className="field" style={{marginBottom:16}}>
+          <label>Financial year</label>
+          <select value={fyYear} onChange={e=>setFyYear(parseInt(e.target.value,10))}>
+            {[0,1,2,3,4].map(i => {
+              const y = new Date().getFullYear() - i;
+              return <option key={y} value={y}>{y} – {y+1}</option>;
+            })}
+          </select>
+        </div>
+        {attendanceError && <div className="error-msg">{attendanceError}</div>}
+        {!attendance && !attendanceError && <div style={{color:"var(--muted)",fontSize:13}}>Loading…</div>}
+        {attendance && (
+          attendance.length === 0 ? <EmptyRow text="No check-ins recorded for this financial year" /> : (
+            <div className="scroll-x">
+              <table>
+                <thead><tr><th>Name</th><th>Member ID</th><th>Times attended</th></tr></thead>
+                <tbody>
+                  {attendance.map((a,i) => (
+                    <tr key={i}>
+                      <td>{a.Name}{a.isGuest && <span style={{color:"var(--muted)",fontSize:11.5}}> (Guest)</span>}</td>
+                      <td>{a.MemberID || "—"}</td>
+                      <td style={{fontWeight:700}}>{a.count}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
         )}
       </div>
 
