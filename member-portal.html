@@ -96,14 +96,6 @@ const { useState, useEffect, useRef } = React;
    ============================================================ */
 const API_URL = "https://script.google.com/macros/s/AKfycbzCZk7asDKyO9vV3jpu0wvOautx-2JbzNpfl4_mmY5ljBxyRUJOafd7eNjOK2vqpXnU/exec";
 
-/**
- * Fill this in once you've registered your site at
- * https://www.google.com/recaptcha/admin (choose reCAPTCHA v2, "I'm not
- * a robot" checkbox). Use the SITE key here — the SECRET key goes in
- * Code.gs, never in this frontend file.
- */
-const RECAPTCHA_SITE_KEY = "6LcJOH4tAAAAAF5U6RDAJI5vd5LbYPt8efzeE2kO";
-
 let jsonpCounter = 0;
 function jsonpRequest(params) {
   return new Promise((resolve, reject) => {
@@ -141,17 +133,18 @@ function formatDate(d) {
 /* ============================================================
    CAPTCHA WIDGET
    ============================================================ */
-function CaptchaWidget({ onVerify, resetSignal }) {
+function CaptchaWidget({ siteKey, onVerify, resetSignal }) {
   const containerRef = useRef(null);
   const widgetId = useRef(null);
 
   useEffect(() => {
+    if (!siteKey) return;
     let cancelled = false;
     const tryRender = () => {
       if (cancelled) return;
       if (window.grecaptcha && window.grecaptcha.render && containerRef.current && widgetId.current === null) {
         widgetId.current = window.grecaptcha.render(containerRef.current, {
-          sitekey: RECAPTCHA_SITE_KEY,
+          sitekey: siteKey,
           callback: onVerify,
           "expired-callback": () => onVerify("")
         });
@@ -161,7 +154,7 @@ function CaptchaWidget({ onVerify, resetSignal }) {
     };
     tryRender();
     return () => { cancelled = true; };
-  }, []);
+  }, [siteKey]);
 
   useEffect(() => {
     if (resetSignal && window.grecaptcha && widgetId.current !== null) {
@@ -169,8 +162,8 @@ function CaptchaWidget({ onVerify, resetSignal }) {
     }
   }, [resetSignal]);
 
-  if (!RECAPTCHA_SITE_KEY || RECAPTCHA_SITE_KEY.indexOf("PASTE_YOUR") === 0) {
-    return <p className="hint" style={{color:"var(--plum)"}}>CAPTCHA not configured yet — set RECAPTCHA_SITE_KEY in this file.</p>;
+  if (!siteKey) {
+    return <p className="hint" style={{color:"var(--plum)"}}>CAPTCHA not configured yet — set RECAPTCHA_SITE_KEY in Script Properties.</p>;
   }
   return <div ref={containerRef} style={{margin:"6px 0 16px"}}></div>;
 }
@@ -181,9 +174,14 @@ function CaptchaWidget({ onVerify, resetSignal }) {
 function LookupScreen({ onFound }) {
   const [query, setQuery] = useState("");
   const [captchaToken, setCaptchaToken] = useState("");
+  const [siteKey, setSiteKey] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [resetSignal, setResetSignal] = useState(0);
+
+  useEffect(() => {
+    api("publicConfig", {}).then(r => setSiteKey(r.data.recaptchaSiteKey)).catch(()=>{});
+  }, []);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -210,7 +208,7 @@ function LookupScreen({ onFound }) {
             <label>Member ID or mobile number</label>
             <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="e.g. GGNZ-0001 or 021 234 5678" required autoFocus />
           </div>
-          <CaptchaWidget onVerify={setCaptchaToken} resetSignal={resetSignal} />
+          <CaptchaWidget siteKey={siteKey} onVerify={setCaptchaToken} resetSignal={resetSignal} />
           <button className="btn gold btn-block" type="submit" disabled={loading}>
             {loading ? "Looking up…" : "Find my membership"}
           </button>
