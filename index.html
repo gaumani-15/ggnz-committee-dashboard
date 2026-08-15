@@ -176,7 +176,7 @@
 <body>
 <div id="root"></div>
 
-< type="text/babel">
+<script type="text/babel">
 const { useState, useEffect, useCallback, useMemo, useRef } = React;
 
 /* ============================================================
@@ -294,7 +294,7 @@ function Shell({ user, token, onLogout }) {
         <div className="tb-left">
           <button className="icon-btn" aria-label="Open menu" onClick={()=>setDrawerOpen(true)}>&#9776;</button>
           <img src="ggnz-logo.png" alt="GGNZ logo" style={{width:26,height:26,borderRadius:"50%"}} />
-          <span className="brand">Garvi Gujarat NZ Charitable Trust</span>
+          <span className="brand">GGNZ</span>
         </div>
         <div className="tb-right">
           <button className="icon-btn badge-dot" aria-label="Notifications" title="No new notifications" onClick={()=>alert("No new notifications")}>&#128276;</button>
@@ -756,12 +756,15 @@ function EventModal({ record, onClose, onSave }) {
    ============================================================ */
 function Bookings({ token }) {
   const [rows, setRows] = useState(null);
+  const [members, setMembers] = useState([]);
   const [error, setError] = useState("");
   const [editing, setEditing] = useState(null);
   const [markingId, setMarkingId] = useState(null);
+  const [search, setSearch] = useState("");
 
   const load = useCallback(() => {
     api("listBookings", {}, token).then(r => setRows(r.data)).catch(e => setError(e.message));
+    api("listMembers", {}, token).then(r => setMembers(r.data)).catch(()=>{});
   }, [token]);
   useEffect(load, [load]);
 
@@ -777,18 +780,35 @@ function Bookings({ token }) {
   if (error) return <ApiErrorPanel message={error} />;
   if (!rows) return <LoadingPanel />;
 
+  const filteredRows = (() => {
+    const q = search.trim().toLowerCase();
+    if (!q) return rows;
+    const qDigits = q.replace(/\D/g, "");
+    return rows.filter(b => {
+      if ((b.Name || "").toLowerCase().includes(q)) return true;
+      if ((b.MemberID || "").toLowerCase().includes(q)) return true;
+      if ((b.BookedBy || "").toLowerCase().includes(q)) return true;
+      if (qDigits.length >= 4) {
+        const mem = members.find(m => m.MemberID === b.MemberID);
+        if (mem && (mem.Phone || "").replace(/\D/g, "").includes(qDigits)) return true;
+      }
+      return false;
+    });
+  })();
+
   return (
     <div>
       <div className="toolbar">
-        <div style={{color:"var(--muted)",fontSize:13}}>{rows.length} booking{rows.length===1?"":"s"}</div>
+        <input type="search" placeholder="Search by name, Member ID, or phone…" value={search} onChange={e=>setSearch(e.target.value)} />
         <button className="btn gold" onClick={()=>setEditing({})}>+ Add booking</button>
       </div>
+      <div style={{color:"var(--muted)",fontSize:13,marginBottom:8}}>{filteredRows.length} of {rows.length} booking{rows.length===1?"":"s"}</div>
       <div className="list-card"><div className="scroll-x">
-        {rows.length === 0 ? <EmptyRow text="No bookings yet" /> : (
+        {filteredRows.length === 0 ? <EmptyRow text={search ? "No bookings match your search" : "No bookings yet"} /> : (
           <table>
             <thead><tr><th>Name</th><th>Event</th><th>Meal</th><th>Booked by</th><th>Status</th><th>Payment</th><th></th></tr></thead>
             <tbody>
-              {rows.map(b => {
+              {filteredRows.map(b => {
                 const isBooker = !b.BookedBy || String(b.BookedBy) === String(b.MemberID);
                 return (
                   <tr key={b.BookingID}>
@@ -851,17 +871,17 @@ function BookingModal({ record, onClose, onSave }) {
    PAYMENTS
    ============================================================ */
 function Payments({ token }) {
-  const [bookings, setBookings] = useState(null);
+  const [groups, setGroups] = useState(null);
   const [payments, setPayments] = useState(null);
   const [error, setError] = useState("");
   const [adding, setAdding] = useState(false);
-  const [confirming, setConfirming] = useState(null); // { booking, groupSize }
+  const [confirming, setConfirming] = useState(null); // { group }
 
   const load = useCallback(() => {
     Promise.all([
-      api("listBookings", {}, token),
+      api("paymentGroups", {}, token),
       api("listPayments", {}, token)
-    ]).then(([b, p]) => { setBookings(b.data); setPayments(p.data); })
+    ]).then(([g, p]) => { setGroups(g.data); setPayments(p.data); })
       .catch(e => setError(e.message));
   }, [token]);
   useEffect(load, [load]);
@@ -869,22 +889,14 @@ function Payments({ token }) {
   const savePayment = async (record) => { await api("savePayment", { record: JSON.stringify(record) }, token); setAdding(false); load(); };
   const confirmPayment = async (method) => {
     try {
-      await api("markBookingPaid", { id: confirming.booking.BookingID, method }, token);
+      await api("markBookingPaid", { id: confirming.group.bookerBookingId, method }, token);
       setConfirming(null);
       load();
     } catch (e) { alert(e.message); }
   };
 
   if (error) return <ApiErrorPanel message={error} />;
-  if (!bookings || !payments) return <LoadingPanel />;
-
-  const awaiting = bookings.filter(b => (b.PaymentStatus || "Pending") !== "Paid");
-  // Group by who did the booking, per event — a family RSVPs and pays together.
-  // Bookings without a BookedBy (e.g. added directly by the committee) are their own group.
-  const groupKey = b => b.EventID + "::" + (b.BookedBy || b.MemberID || b.BookingID);
-  const groupSizes = {};
-  awaiting.forEach(b => { const k = groupKey(b); groupSizes[k] = (groupSizes[k] || 0) + 1; });
-  const isBooker = b => !b.BookedBy || String(b.BookedBy) === String(b.MemberID);
+  if (!groups || !payments) return <LoadingPanel />;
 
   const total = payments.reduce((s,p)=> s + (parseFloat(p.Amount)||0), 0);
 
@@ -892,30 +904,25 @@ function Payments({ token }) {
     <div>
       <div className="section-label" style={{marginTop:0}}>Awaiting payment</div>
       <p style={{color:"var(--muted)",fontSize:12.5,marginTop:-6,marginBottom:14}}>
-        Families RSVP and pay together — Mark Paid appears once per booking, on whoever submitted it, and confirms everyone in that group at once.
+        One row per booking — whoever submitted the RSVP pays for their whole group at once.
       </p>
       <div className="list-card" style={{marginBottom:22}}><div className="scroll-x">
-        {awaiting.length === 0 ? <EmptyRow text="Nothing awaiting payment" /> : (
+        {groups.length === 0 ? <EmptyRow text="Nothing awaiting payment" /> : (
           <table>
-            <thead><tr><th>Name</th><th>Event</th><th>Meal</th><th></th></tr></thead>
+            <thead><tr><th>Booked by</th><th>Event</th><th>Amount</th><th></th></tr></thead>
             <tbody>
-              {awaiting.map(b => {
-                const size = groupSizes[groupKey(b)] || 1;
-                const showButton = isBooker(b);
-                return (
-                  <tr key={b.BookingID}>
-                    <td>{b.Name}{!showButton && <span style={{color:"var(--muted)",fontSize:11.5}}> (part of group)</span>}</td>
-                    <td>{b.EventID}</td><td>{displayMeal(b.Meal)}</td>
-                    <td style={{whiteSpace:"nowrap"}}>
-                      {showButton && (
-                        <button className="btn gold sm" onClick={()=>setConfirming({ booking: b, groupSize: size })}>
-                          Mark Paid{size > 1 ? " (" + size + ")" : ""}
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
+              {groups.map(g => (
+                <tr key={g.key}>
+                  <td>{g.bookerName}{g.count > 1 && <span style={{color:"var(--muted)",fontSize:11.5}}> (+{g.count - 1} more)</span>}</td>
+                  <td>{g.EventID}</td>
+                  <td style={{fontWeight:700}}>${g.total}</td>
+                  <td style={{whiteSpace:"nowrap"}}>
+                    <button className="btn gold sm" onClick={()=>setConfirming({ group: g })}>
+                      Mark Paid{g.count > 1 ? " (" + g.count + ")" : ""}
+                    </button>
+                  </td>
+                </tr>
+              ))}
             </tbody>
           </table>
         )}
@@ -941,12 +948,12 @@ function Payments({ token }) {
         )}
       </div></div>
       {adding && <PaymentModal onClose={()=>setAdding(false)} onSave={savePayment} />}
-      {confirming && <ConfirmPaymentModal booking={confirming.booking} groupSize={confirming.groupSize} onClose={()=>setConfirming(null)} onConfirm={confirmPayment} />}
+      {confirming && <ConfirmPaymentModal name={confirming.group.bookerName} count={confirming.group.count} total={confirming.group.total} eventId={confirming.group.EventID} onClose={()=>setConfirming(null)} onConfirm={confirmPayment} />}
     </div>
   );
 }
 
-function ConfirmPaymentModal({ booking, groupSize, onClose, onConfirm }) {
+function ConfirmPaymentModal({ name, count, total, eventId, onClose, onConfirm }) {
   const [method, setMethod] = useState("Cash");
   const [submitting, setSubmitting] = useState(false);
   const submit = async () => { setSubmitting(true); await onConfirm(method); setSubmitting(false); };
@@ -955,10 +962,10 @@ function ConfirmPaymentModal({ booking, groupSize, onClose, onConfirm }) {
       <div className="modal" onClick={e=>e.stopPropagation()}>
         <h3>Confirm payment</h3>
         <p style={{color:"var(--muted)",fontSize:13.5,marginTop:-8}}>
-          {groupSize > 1 ? (
-            <React.Fragment>This marks <strong>{booking.Name}</strong>'s booking and <strong>{groupSize - 1} other{groupSize - 1 === 1 ? "" : "s"}</strong> in their family's RSVP for {booking.EventID} as Confirmed and Paid, logs one combined payment record, and emails {booking.Name} a confirmation.</React.Fragment>
+          {count > 1 ? (
+            <React.Fragment>This marks <strong>{name}</strong>'s booking and <strong>{count - 1} other{count - 1 === 1 ? "" : "s"}</strong> in their group's RSVP for {eventId} as Confirmed and Paid (${total} total), logs one combined payment record, and emails {name} a confirmation.</React.Fragment>
           ) : (
-            <React.Fragment>This marks <strong>{booking.Name}</strong>'s booking for {booking.EventID} as Confirmed and Paid, logs a payment record, and emails them a confirmation.</React.Fragment>
+            <React.Fragment>This marks <strong>{name}</strong>'s booking for {eventId} as Confirmed and Paid (${total}), logs a payment record, and emails them a confirmation.</React.Fragment>
           )}
         </p>
         <div className="field">
