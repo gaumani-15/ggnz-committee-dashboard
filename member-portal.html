@@ -206,7 +206,7 @@ function LookupScreen({ onFound }) {
         <form onSubmit={submit}>
           <div className="field">
             <label>Member ID or mobile number</label>
-            <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="e.g. GGNZ-0001 or 021 234 5678" required autoFocus />
+            <input value={query} onChange={e=>setQuery(e.target.value)} placeholder=" " required autoFocus />
           </div>
           <CaptchaWidget siteKey={siteKey} onVerify={setCaptchaToken} resetSignal={resetSignal} />
           <button className="btn gold btn-block" type="submit" disabled={loading}>
