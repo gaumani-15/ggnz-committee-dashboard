@@ -283,7 +283,10 @@ function Login({ onLogin }) {
    SHELL
    ============================================================ */
 function Shell({ user, token, onLogout }) {
-  const [page, setPage] = useState("dashboard");
+  const isVolunteer = user.role === "volunteer";
+  const visibleNav = isVolunteer ? NAV_ITEMS.filter(n => n.key === "checkin") : NAV_ITEMS;
+  const visibleTabs = isVolunteer ? BOTTOM_TABS.filter(t => t.key === "checkin") : BOTTOM_TABS;
+  const [page, setPage] = useState(isVolunteer ? "checkin" : "dashboard");
   const [drawerOpen, setDrawerOpen] = useState(false);
   const current = NAV_ITEMS.find(n => n.key === page);
   const go = (key) => { setPage(key); setDrawerOpen(false); };
@@ -312,7 +315,7 @@ function Shell({ user, token, onLogout }) {
             </div>
             <div className="scallop"></div>
             <nav className="drawer-nav">
-              {NAV_ITEMS.map(item => (
+              {visibleNav.map(item => (
                 <div key={item.key} className={"nav-item" + (page===item.key ? " active" : "")}
                      onClick={()=>go(item.key)} role="button" tabIndex={0}
                      onKeyDown={e=>{ if (e.key==="Enter") go(item.key); }}>
@@ -336,7 +339,7 @@ function Shell({ user, token, onLogout }) {
       </div>
 
       <div className="bottom-tabs">
-        {BOTTOM_TABS.map(tab => (
+        {visibleTabs.map(tab => (
           <button key={tab.key} className={"tab-item" + (page===tab.key ? " active" : "")} onClick={()=>go(tab.key)}>
             <span className="t-icon">{tab.icon}</span><span>{tab.label}</span>
           </button>
@@ -1496,14 +1499,20 @@ function Settings({ token, user }) {
   const [settings, setSettings] = useState(null);
   const [users, setUsers] = useState(null);
   const [error, setError] = useState("");
+  const [addingUser, setAddingUser] = useState(false);
   const isAdmin = user.role === "admin";
+
+  const loadUsers = useCallback(() => {
+    if (isAdmin) api("listUsers", {}, token).then(r => setUsers(r.data)).catch(()=>{});
+  }, [token, isAdmin]);
 
   useEffect(() => {
     api("listSettings", {}, token).then(r => setSettings(r.data)).catch(e => setError(e.message));
-    if (isAdmin) api("listUsers", {}, token).then(r => setUsers(r.data)).catch(()=>{});
+    loadUsers();
   }, [token]);
 
   const saveOne = async (key, value) => { await api("saveSetting", { key, value }, token); setSettings({ ...settings, [key]: value }); };
+  const saveUser = async (record) => { await api("saveUser", { record: JSON.stringify(record) }, token); setAddingUser(false); loadUsers(); };
 
   if (error) return <ApiErrorPanel message={error} />;
   if (!settings) return <LoadingPanel />;
@@ -1522,16 +1531,62 @@ function Settings({ token, user }) {
         <p style={{color:"var(--muted)",fontSize:13}}>Role: <span className="badge ok">{user.role}</span></p>
         {isAdmin && (
           <div style={{marginTop:16}}>
-            <h4 style={{marginBottom:8}}>Committee users</h4>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+              <h4 style={{margin:0}}>Committee users</h4>
+              <button className="btn gold sm" onClick={()=>setAddingUser(true)}>+ Add user</button>
+            </div>
             {!users ? <div style={{color:"var(--muted)",fontSize:13}}>Loading…</div> : (
               <div className="scroll-x"><table>
                 <thead><tr><th>Name</th><th>Email</th><th>Role</th></tr></thead>
-                <tbody>{users.map((u,i) => <tr key={i}><td>{u.Name}</td><td>{u.Email}</td><td>{u.Role}</td></tr>)}</tbody>
+                <tbody>{users.map((u,i) => <tr key={i}><td>{u.Name}</td><td>{u.Email}</td><td><span className="badge ok">{u.Role}</span></td></tr>)}</tbody>
               </table></div>
             )}
-            <p style={{fontSize:12,color:"var(--muted)",marginTop:10}}>To add users, add a row to the <code>Users</code> sheet, or call <code>saveUser</code> with a <code>Password</code> field.</p>
+            <p style={{fontSize:12,color:"var(--muted)",marginTop:10}}>
+              <strong>Volunteer</strong> role can only access QR Check-In — everything else (Payments, Bookings, Membership, etc.) is blocked for them, both in this app and directly at the API level.
+            </p>
           </div>
         )}
+      </div>
+      {addingUser && <AddUserModal onClose={()=>setAddingUser(false)} onSave={saveUser} />}
+    </div>
+  );
+}
+
+function AddUserModal({ onClose, onSave }) {
+  const [form, setForm] = useState({ Name:"", Email:"", Password:"", Role:"volunteer" });
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
+  const set = k => e => setForm({ ...form, [k]: e.target.value });
+
+  const submit = async () => {
+    setError("");
+    if (!form.Name || !form.Email || !form.Password) { setError("Name, email, and password are all required."); return; }
+    setSubmitting(true);
+    try { await onSave(form); }
+    catch (e) { setError(e.message); }
+    finally { setSubmitting(false); }
+  };
+
+  return (
+    <div className="modal-overlay" onClick={onClose}>
+      <div className="modal" onClick={e=>e.stopPropagation()}>
+        <h3>Add committee user</h3>
+        {error && <div className="error-msg">{error}</div>}
+        <div className="field"><label>Name</label><input value={form.Name} onChange={set("Name")} /></div>
+        <div className="field"><label>Email</label><input type="email" value={form.Email} onChange={set("Email")} /></div>
+        <div className="field"><label>Password</label><input type="password" value={form.Password} onChange={set("Password")} /></div>
+        <div className="field">
+          <label>Role</label>
+          <select value={form.Role} onChange={set("Role")}>
+            <option value="volunteer">Volunteer — Check-In only</option>
+            <option value="committee">Committee — full access except user management</option>
+            <option value="admin">Admin — full access</option>
+          </select>
+        </div>
+        <div className="row-actions">
+          <button className="btn ghost" onClick={onClose}>Cancel</button>
+          <button className="btn gold" onClick={submit} disabled={submitting}>{submitting ? "Adding…" : "Add user"}</button>
+        </div>
       </div>
     </div>
   );
