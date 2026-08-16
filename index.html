@@ -284,7 +284,10 @@ function Login({ onLogin }) {
    ============================================================ */
 function Shell({ user, token, onLogout }) {
   const isVolunteer = user.role === "volunteer";
-  const visibleNav = isVolunteer ? NAV_ITEMS.filter(n => n.key === "checkin") : NAV_ITEMS;
+  const isFinance = user.role === "admin" || user.role === "treasurer";
+  const visibleNav = isVolunteer
+    ? NAV_ITEMS.filter(n => n.key === "checkin")
+    : (isFinance ? NAV_ITEMS : NAV_ITEMS.filter(n => n.key !== "payments"));
   const visibleTabs = isVolunteer ? BOTTOM_TABS.filter(t => t.key === "checkin") : BOTTOM_TABS;
   const [page, setPage] = useState(isVolunteer ? "checkin" : "dashboard");
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -372,7 +375,7 @@ function Page({ page, token, user, onNavigate }) {
     case "bookings": return <Bookings token={token} />;
     case "payments": return <Payments token={token} />;
     case "checkin": return <CheckIn token={token} />;
-    case "reports": return <Reports token={token} />;
+    case "reports": return <Reports token={token} user={user} />;
     case "communications": return <Stub icon="📢" label="Communications" note="Ready to wire up once your email API key is set — this will send announcements and RSVP confirmations to members." />;
     case "volunteers": return <Volunteers token={token} />;
     case "settings": return <Settings token={token} user={user} />;
@@ -474,7 +477,7 @@ function Dashboard({ token, user, onNavigate }) {
             <StatRow icon="👥" label="Members" value={data.memberCount} />
             <StatRow icon="🎉" label="Upcoming Events" value={data.upcomingEventsCount} />
             <StatRow icon="📝" label="Bookings" value={data.bookingCount} />
-            <StatRow icon="💰" label="Pending Payments" value={data.pendingPaymentsCount} />
+            {data.pendingPaymentsCount !== undefined && <StatRow icon="💰" label="Pending Payments" value={data.pendingPaymentsCount} />}
             <StatRow icon="📷" label="Today's Check-ins" value={data.todayCheckins} />
           </div>
 
@@ -1257,7 +1260,8 @@ function CheckIn({ token }) {
 /* ============================================================
    REPORTS
    ============================================================ */
-function Reports({ token }) {
+function Reports({ token, user }) {
+  const isFinance = user.role === "admin" || user.role === "treasurer";
   const [data, setData] = useState(null);
   const [error, setError] = useState("");
   const [events, setEvents] = useState(null);
@@ -1397,7 +1401,7 @@ function Reports({ token }) {
       </div>
 
       <div className="card" style={{marginBottom:16}}><h3 style={{marginTop:0}}>Activity overview</h3><canvas ref={canvasRef1} height="200"></canvas></div>
-      <div className="card"><h3 style={{marginTop:0}}>Recent payments by method</h3><canvas ref={canvasRef2} height="200"></canvas></div>
+      {isFinance && <div className="card"><h3 style={{marginTop:0}}>Recent payments by method</h3><canvas ref={canvasRef2} height="200"></canvas></div>}
     </div>
   );
 }
@@ -1579,7 +1583,8 @@ function AddUserModal({ onClose, onSave }) {
           <label>Role</label>
           <select value={form.Role} onChange={set("Role")}>
             <option value="volunteer">Volunteer — Check-In only</option>
-            <option value="committee">Committee — full access except user management</option>
+            <option value="committee">Committee — everything except Payments</option>
+            <option value="treasurer">Treasurer — full access including Payments</option>
             <option value="admin">Admin — full access</option>
           </select>
         </div>
