@@ -473,7 +473,7 @@ function RsvpTab({ member, family }) {
           })}
 
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:18,marginBottom:10}}>
-            <div className="section-label" style={{margin:0}}>Guests (relatives only, non-members)</div>
+            <div className="section-label" style={{margin:0}}>Guests (relatives only, Strictly No Freineds Please)</div>
             <button className="btn ghost sm" type="button" onClick={addGuest}>+ Add Guest</button>
           </div>
           <p style={{color:"var(--muted)",fontSize:12,marginTop:-4}}>Adult (12+) = $20 · Child (5–12) = $10 · Under 5 = Free — only charged if a meal is selected.</p>
@@ -507,10 +507,10 @@ function RsvpTab({ member, family }) {
           ))}
 
           <div className="card" style={{marginTop:16,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-            <div style={{fontWeight:700}}>Estimated total</div>
+            <div style={{fontWeight:700}}>Total Amoint</div>
             <div style={{fontFamily:"'Newsreader',serif",fontSize:22,fontWeight:700,color:"var(--teal-900)"}}>${total}</div>
           </div>
-          <p style={{color:"var(--muted)",fontSize:11.5,marginTop:6}}>This is an estimate — the committee confirms your booking and payment separately.</p>
+          <p style={{color:"var(--muted)",fontSize:11.5,marginTop:6}}>The committee will confirm your booking once payment has been verified.</p>
 
           <button className="btn gold btn-block" style={{marginTop:6}} onClick={submit} disabled={submitting}>
             {submitting ? "Sending…" : "Submit RSVP"}
