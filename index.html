@@ -895,8 +895,11 @@ function Payments({ token }) {
   const savePayment = async (record) => { await api("savePayment", { record: JSON.stringify(record) }, token); setAdding(false); load(); };
   const confirmPayment = async (method) => {
     try {
-      await api("markBookingPaid", { id: confirming.group.bookerBookingId, method }, token);
+      const res = await api("markBookingPaid", { id: confirming.group.bookerBookingId, method }, token);
       setConfirming(null);
+      if (res.data.emailSent === false) {
+        alert("Payment confirmed, but the email confirmation couldn't be sent — check that this member has an email address on file, or check Executions in the Apps Script editor for the exact error.");
+      }
       load();
     } catch (e) { alert(e.message); }
   };
