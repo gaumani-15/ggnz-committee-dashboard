@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Garvi Gujarat NZ Charitable Trust Membership Portal</title>
+<title>GGNZ Membership Portal</title>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600;6..72,700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
@@ -206,7 +206,7 @@ function LookupScreen({ onFound }) {
         <form onSubmit={submit}>
           <div className="field">
             <label>Member ID or mobile number</label>
-            <input value={query} onChange={e=>setQuery(e.target.value)} placeholder=" " required autoFocus />
+            <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="e.g. GGNZ-0001 or 021 234 5678" required autoFocus />
           </div>
           <CaptchaWidget siteKey={siteKey} onVerify={setCaptchaToken} resetSignal={resetSignal} />
           <button className="btn gold btn-block" type="submit" disabled={loading}>
@@ -351,7 +351,7 @@ function RsvpTab({ member, family }) {
   const updateGuest = (id, patch) => setGuests(guests.map(g => g.id === id ? { ...g, ...patch } : g));
   const removeGuest = (id) => setGuests(guests.filter(g => g.id !== id));
 
-  const total = everyone.reduce((sum, p) => (isActive(p) && attending[p.MemberID] === true) ? sum + memberCharge(p.AgeCategory, p.MealPlan, mealChoice[p.MemberID]) : sum, 0)
+  const total = everyone.reduce((sum, p) => (isActive(p) && attending[p.MemberID] !== false) ? sum + memberCharge(p.AgeCategory, p.MealPlan, mealChoice[p.MemberID]) : sum, 0)
     + guests.reduce((sum, g) => sum + guestCharge(g.Tier, g.Meal), 0);
 
   const submittingRef = useRef(false); // synchronous guard — catches double-taps React state can't catch in time
@@ -359,7 +359,7 @@ function RsvpTab({ member, family }) {
   const submit = async () => {
     if (submittingRef.current) return;
     setError(""); setSuccess("");
-    const party = everyone.filter(p => isActive(p) && attending[p.MemberID] === true);
+    const party = everyone.filter(p => isActive(p) && attending[p.MemberID] !== false);
     if (!selectedEvent) { setError("Choose an event first."); return; }
     if (party.length === 0 && guests.length === 0) { setError("Select at least one attendee, or add a guest."); return; }
     if (guests.some(g => !g.Name.trim())) { setError("Every guest needs a name."); return; }
@@ -418,7 +418,7 @@ function RsvpTab({ member, family }) {
           <div className="section-label" style={{marginTop:18}}>Members</div>
           {everyone.map(p => {
             const active = isActive(p);
-            const isIn = active && attending[p.MemberID] === true;
+            const isIn = active && attending[p.MemberID] !== false;
             const meal = mealChoice[p.MemberID] || "No Meal";
             const charge = isIn ? memberCharge(p.AgeCategory, p.MealPlan, meal) : 0;
             const isPaidPlan = p.MealPlan === "Yearly" || p.MealPlan === "Half-Yearly";
@@ -441,19 +441,17 @@ function RsvpTab({ member, family }) {
             }
 
             return (
-              <div className="card" key={p.MemberID} style={{marginBottom:10, opacity: isIn ? 1 : 0.6, transition:"opacity .15s"}}>
+              <div className="card" key={p.MemberID} style={{marginBottom:10, opacity: isIn ? 1 : 0.65, transition:"opacity .15s"}}>
                 <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
                   <div>
                     <div style={{fontWeight:700,fontFamily:"'Newsreader',serif",fontSize:16,textDecoration: isIn ? "none" : "line-through",color: isIn ? "var(--ink)" : "var(--muted)"}}>{p.Name}</div>
                     <div style={{color:"var(--muted)",fontSize:12}}>{p.MemberID} · {p.AgeCategory || "Age unknown"}</div>
                   </div>
-                  <button
-                    className="btn sm"
-                    style={isIn ? {background:"var(--sage)"} : {background:"var(--border)",color:"var(--muted)"}}
-                    onClick={()=>toggleAttending(p.MemberID, isIn)}
-                  >
-                    {isIn ? "Attending" : "Not Attending"}
-                  </button>
+                  {isIn ? (
+                    <button className="btn sm" style={{background:"var(--plum)"}} onClick={()=>toggleAttending(p.MemberID, isIn)}>Not Attending</button>
+                  ) : (
+                    <button className="btn sm" style={{background:"var(--marigold-500)",color:"var(--teal-900)"}} onClick={()=>toggleAttending(p.MemberID, isIn)}>Add Back</button>
+                  )}
                 </div>
                 <div style={{fontSize:12.5,color:"var(--muted)",marginTop:8}}>
                   Meal plan: <strong style={{color:"var(--ink)"}}>{p.MealPlan || "Not set"}</strong>
@@ -475,7 +473,7 @@ function RsvpTab({ member, family }) {
           })}
 
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:18,marginBottom:10}}>
-            <div className="section-label" style={{margin:0}}>Guests (relatives only, Strictly No Frineds Please)</div>
+            <div className="section-label" style={{margin:0}}>Guests (relatives only, non-members)</div>
             <button className="btn ghost sm" type="button" onClick={addGuest}>+ Add Guest</button>
           </div>
           <p style={{color:"var(--muted)",fontSize:12,marginTop:-4}}>Adult (12+) = $20 · Child (5–12) = $10 · Under 5 = Free — only charged if a meal is selected.</p>
@@ -509,10 +507,10 @@ function RsvpTab({ member, family }) {
           ))}
 
           <div className="card" style={{marginTop:16,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-            <div style={{fontWeight:700}}>Total Amount</div>
+            <div style={{fontWeight:700}}>Estimated total</div>
             <div style={{fontFamily:"'Newsreader',serif",fontSize:22,fontWeight:700,color:"var(--teal-900)"}}>${total}</div>
           </div>
-          <p style={{color:"var(--muted)",fontSize:11.5,marginTop:6}}>The committee will confirm your booking once payment has been verified</p>
+          <p style={{color:"var(--muted)",fontSize:11.5,marginTop:6}}>This is an estimate — the committee confirms your booking and payment separately.</p>
 
           <button className="btn gold btn-block" style={{marginTop:6}} onClick={submit} disabled={submitting}>
             {submitting ? "Sending…" : "Submit RSVP"}
