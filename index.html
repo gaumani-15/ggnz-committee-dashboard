@@ -1033,6 +1033,8 @@ function CheckIn({ token }) {
   const [scanning, setScanning] = useState(false);
   const [checkingIn, setCheckingIn] = useState(false);
   const [bookingsLoaded, setBookingsLoaded] = useState(false);
+  const [generating, setGenerating] = useState(false);
+  const [backupSheet, setBackupSheet] = useState(null);
   const videoRef = useRef(null);
   const canvasRef = useRef(null);
   const streamRef = useRef(null);
@@ -1048,13 +1050,22 @@ function CheckIn({ token }) {
   useEffect(loadRecent, [loadRecent]);
 
   useEffect(() => {
-    setGroup(null); setQuery(""); setError(""); setNotice(""); setBookingsLoaded(false);
+    setGroup(null); setQuery(""); setError(""); setNotice(""); setBookingsLoaded(false); setBackupSheet(null);
     if (!eventId) { setBookings([]); return; }
     api("listBookings", {}, token).then(r => {
       setBookings(r.data.filter(b => String(b.EventID) === String(eventId) && b.Status !== "Cancelled"));
       setBookingsLoaded(true);
     }).catch(e => { setError(e.message); setBookingsLoaded(true); });
   }, [eventId, token]);
+
+  const generateBackupSheet = async () => {
+    setGenerating(true); setError(""); setBackupSheet(null);
+    try {
+      const res = await api("generateCheckinSheet", { eventId }, token);
+      setBackupSheet(res.data);
+    } catch (e) { setError(e.message); }
+    finally { setGenerating(false); }
+  };
 
   const groupKey = b => b.BookedBy || b.MemberID || b.BookingID;
 
@@ -1172,6 +1183,24 @@ function CheckIn({ token }) {
         <React.Fragment>
           {error && <div className="error-msg">{error}</div>}
           {notice && <div className="success-msg">{notice}</div>}
+
+          <div className="card" style={{marginBottom:16, padding:14}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+              <div>
+                <strong style={{fontSize:13.5}}>🖨️ Printable backup list</strong>
+                <p style={{color:"var(--muted)",fontSize:12,margin:"2px 0 0"}}>In case the app or internet drops on the day \u2014 Name, ID, and meal, sorted A\u2013Z, with a tick column.</p>
+              </div>
+              <button className="btn ghost sm" onClick={generateBackupSheet} disabled={generating || !bookingsLoaded}>
+                {generating ? "Generating\u2026" : "Generate"}
+              </button>
+            </div>
+            {backupSheet && (
+              <p style={{fontSize:12.5,marginTop:10,marginBottom:0}}>
+                Created <strong>{backupSheet.count}</strong> row{backupSheet.count===1?"":"s"} in a sheet tab called <code>{backupSheet.sheetName}</code>. {" "}
+                <a href={backupSheet.sheetUrl} target="_blank" rel="noopener noreferrer">Open it to print \u2192</a>
+              </p>
+            )}
+          </div>
 
           {!scanning && (
             <button className="btn gold btn-block" style={{marginBottom:16}} onClick={startScan} disabled={!bookingsLoaded}>
