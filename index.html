@@ -87,7 +87,7 @@
   .badge-dot{position:relative;}
   .badge-dot::after{content:"";position:absolute;top:5px;right:6px;width:7px;height:7px;border-radius:50%;background:var(--marigold-500);border:1.5px solid var(--teal-900);}
 
-  .content{padding:20px 16px 90px;flex:1;overflow-y:auto;}
+  .content{padding:20px 16px 90px;flex:1;overflow-y:auto;min-height:0;}
   .page-title{margin:2px 0 18px;}
   .page-title h2{margin:0;font-size:21px;color:var(--teal-900);}
   .page-title .subtitle{color:var(--muted);font-size:13px;margin-top:2px;}
@@ -478,14 +478,11 @@ function Dashboard({ token, user, onNavigate }) {
             <StatRow icon="🎉" label="Upcoming Events" value={data.upcomingEventsCount} />
             <StatRow icon="📝" label="Bookings" value={data.bookingCount} />
             {data.pendingPaymentsCount !== undefined && <StatRow icon="💰" label="Pending Payments" value={data.pendingPaymentsCount} />}
-            <StatRow icon="📷" label="Today's Check-ins" value={data.todayCheckins} />
           </div>
 
           <div className="section-label">Quick Actions</div>
           <div className="qa-grid">
-            <QuickAction icon="➕" label="Add Member" onClick={()=>onNavigate("membership")} />
             <QuickAction icon="🎉" label="Create Event" onClick={()=>onNavigate("events")} />
-            <QuickAction icon="📷" label="Start Check-in" onClick={()=>onNavigate("checkin")} />
             <QuickAction icon="📊" label="Reports" onClick={()=>onNavigate("reports")} />
           </div>
 
