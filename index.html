@@ -4,15 +4,19 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>GGNZ Committee</title>
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0d332e">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600;6..72,700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
-<script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js"></script>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" defer></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" defer></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js" defer></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4" defer></script>
+<script src="https://unpkg.com/jsqr@1.4.0/dist/jsQR.js" defer></script>
 
 <style>
   :root{
@@ -174,7 +178,15 @@
 </style>
 </head>
 <body>
-<div id="root"></div>
+<div id="root">
+  <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--teal-900);">
+    <div style="text-align:center;">
+      <div style="width:48px;height:48px;border:3px solid rgba(255,255,255,0.25);border-top-color:var(--marigold-500);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 12px;"></div>
+      <div style="color:#c3d6cc;font-family:'Manrope',sans-serif;font-size:13px;">Loading GGNZ Committee&hellip;</div>
+    </div>
+  </div>
+</div>
+<style>@keyframes spin{to{transform:rotate(360deg)}}</style>
 
 <script type="text/babel">
 const { useState, useEffect, useCallback, useMemo, useRef } = React;
@@ -185,25 +197,40 @@ const { useState, useEffect, useCallback, useMemo, useRef } = React;
 const API_URL = "https://script.google.com/macros/s/AKfycbxLqfRdxZKFPs-YKiGniG_SlNJ6ZpA9izhonCkHsVvQ-CsPlpRv4ddN3WfRkPHUhMDWfQ/exec";
 
 /* ---------------- JSONP helper ---------------- */
-let jsonpCounter = 0;
-function jsonpRequest(params) {
-  return new Promise((resolve, reject) => {
-    const cbName = "ggnzCb_" + (jsonpCounter++) + "_" + Date.now();
-    const script = document.createElement("script");
-    const cleanup = () => { delete window[cbName]; document.body.removeChild(script); };
-    window[cbName] = (data) => { cleanup(); resolve(data); };
-    const qs = Object.keys(params).map(k => encodeURIComponent(k) + "=" + encodeURIComponent(params[k])).join("&");
-    script.src = API_URL + "?callback=" + cbName + "&" + qs;
-    script.onerror = () => { cleanup(); reject(new Error("Network error contacting the API")); };
-    document.body.appendChild(script);
-  });
-}
-
+/**
+ * Sends everything as a POST body instead of a URL query string (JSONP's
+ * approach) — this keeps tokens and passwords out of the browser's URL
+ * bar/history entirely, and gives real HTTP status/error handling
+ * instead of relying on <script> tag onerror, which doesn't reliably
+ * fire for server-side errors.
+ *
+ * Content-Type is deliberately "text/plain", not "application/json" —
+ * Apps Script Web Apps don't implement CORS preflight (OPTIONS)
+ * handling, so a real application/json POST gets blocked before it
+ * ever reaches the script. text/plain is treated as a CORS "simple
+ * request" by the browser, which skips preflight entirely. The backend
+ * still parses the body as JSON on arrival (see handleRequest in
+ * Code.gs) — only the wire-level Content-Type label is different.
+ */
 async function api(action, params, token) {
   if (!API_URL || API_URL.indexOf("PASTE_YOUR") === 0) {
     throw new Error("API not configured yet — set API_URL at the top of the file.");
   }
-  const result = await jsonpRequest(Object.assign({ action }, params || {}, token ? { token } : {}));
+  const payload = Object.assign({ action }, params || {}, token ? { token } : {});
+  let response;
+  try {
+    response = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(payload)
+    });
+  } catch (networkErr) {
+    throw new Error("Network error contacting the API");
+  }
+  if (!response.ok) {
+    throw new Error("Server error (" + response.status + ") contacting the API");
+  }
+  const result = await response.json();
   if (!result.ok) throw new Error(result.error || "Request failed");
   return result;
 }
@@ -376,7 +403,7 @@ function Page({ page, token, user, onNavigate }) {
     case "payments": return <Payments token={token} />;
     case "checkin": return <CheckIn token={token} />;
     case "reports": return <Reports token={token} user={user} />;
-    case "communications": return <Stub icon="📢" label="Communications" note="Ready to wire up once your email API key is set — this will send announcements and RSVP confirmations to members." />;
+    case "communications": return <Communications token={token} />;
     case "volunteers": return <Volunteers token={token} />;
     case "settings": return <Settings token={token} user={user} />;
     default: return null;
@@ -389,6 +416,128 @@ function Stub({ icon, label, note }) {
       <div className="icon">{icon}</div>
       <h3 style={{margin:"0 0 8px", color:"var(--teal-900)"}}>{label} — coming soon</h3>
       <p style={{maxWidth:440, margin:"0 auto"}}>{note}</p>
+    </div>
+  );
+}
+
+/* ============================================================
+   COMMUNICATIONS
+   ============================================================ */
+function Communications({ token }) {
+  const [events, setEvents] = useState(null);
+  const [audience, setAudience] = useState("all");
+  const [eventId, setEventId] = useState("");
+  const [subject, setSubject] = useState("");
+  const [body, setBody] = useState("");
+  const [sendWhatsApp, setSendWhatsApp] = useState(false);
+  const [sending, setSending] = useState(false);
+  const [result, setResult] = useState(null);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    api("listEvents", {}, token).then(r => setEvents(r.data)).catch(()=>{});
+  }, [token]);
+
+  const send = async () => {
+    setError(""); setResult(null);
+    if (!subject.trim() || !body.trim()) { setError("Subject and message are both required."); return; }
+    if (audience === "event" && !eventId) { setError("Choose an event first."); return; }
+
+    const audienceLabel = audience === "event"
+      ? "everyone booked into that event"
+      : "ALL active members";
+    const channelLabel = sendWhatsApp ? " by email and WhatsApp" : " by email";
+    if (!confirm("Send this" + channelLabel + " to " + audienceLabel + "? This can't be undone.")) return;
+
+    setSending(true);
+    try {
+      const res = await api("sendAnnouncement", { subject, body, audience, eventId, sendWhatsApp }, token);
+      setResult(res.data);
+      if (res.data.sent > 0) { setSubject(""); setBody(""); }
+    } catch (e) { setError(e.message); }
+    finally { setSending(false); }
+  };
+
+  return (
+    <div>
+      <div className="card">
+        <h3 style={{marginTop:0}}>Send an announcement</h3>
+        <p style={{color:"var(--muted)",fontSize:12.5,marginTop:-6}}>
+          Emails go out via your committee Gmail account with your organization's contact email as Reply-To, so responses land in the right inbox.
+        </p>
+
+        <div className="field">
+          <label>Send to</label>
+          <select value={audience} onChange={e=>setAudience(e.target.value)}>
+            <option value="all">All active members</option>
+            <option value="event">Attendees of a specific event</option>
+          </select>
+        </div>
+
+        {audience === "event" && (
+          <div className="field">
+            <label>Event</label>
+            <select value={eventId} onChange={e=>setEventId(e.target.value)}>
+              <option value="">Choose an event…</option>
+              {(events||[]).map(e => <option key={e.EventID} value={e.EventID}>{e.Name} ({e.EventID})</option>)}
+            </select>
+          </div>
+        )}
+
+        <div className="field">
+          <label>Subject</label>
+          <input value={subject} onChange={e=>setSubject(e.target.value)} placeholder="e.g. Reminder: September event this Saturday" />
+        </div>
+
+        <div className="field">
+          <label>Message</label>
+          <textarea
+            value={body}
+            onChange={e=>setBody(e.target.value)}
+            rows={7}
+            placeholder="Write your announcement here…"
+            style={{width:"100%",padding:"11px 12px",border:"1px solid var(--border)",borderRadius:6,fontSize:14.5,fontFamily:"inherit",background:"var(--bg)",resize:"vertical"}}
+          />
+        </div>
+
+        <div className="field" style={{display:"flex",alignItems:"flex-start",gap:8}}>
+          <input type="checkbox" id="sendWa" checked={sendWhatsApp} onChange={e=>setSendWhatsApp(e.target.checked)} style={{marginTop:3,width:16,height:16}} />
+          <label htmlFor="sendWa" style={{fontSize:13,fontWeight:500,textTransform:"none",letterSpacing:0,color:"var(--ink)"}}>
+            Also send via WhatsApp
+            <div style={{color:"var(--muted)",fontSize:11.5,fontWeight:400,marginTop:2}}>
+              Only reliably delivers to people who've messaged your WhatsApp number within the last 24 hours — Meta blocks free-form messages outside that window unless you have an approved template. Email above isn't affected by this.
+            </div>
+          </label>
+        </div>
+
+        {error && <div className="error-msg">{error}</div>}
+        {result && (
+          <div style={{marginBottom:16}}>
+            <div className={result.sent > 0 ? "success-msg" : "error-msg"}>
+              Email: sent to {result.sent} of {result.total} recipient{result.total===1?"":"s"}.
+              {result.failed.length > 0 && (
+                <span> {result.failed.length} failed: {result.failed.map(f=>f.name).join(", ")}.</span>
+              )}
+            </div>
+            {result.whatsapp && (
+              result.whatsapp.notConfigured ? (
+                <div className="error-msg" style={{marginTop:8}}>WhatsApp isn't configured yet — set WHATSAPP_PHONE_NUMBER_ID and WHATSAPP_ACCESS_TOKEN in Script Properties.</div>
+              ) : (
+                <div className={result.whatsapp.sent > 0 ? "success-msg" : "error-msg"} style={{marginTop:8}}>
+                  WhatsApp: sent to {result.whatsapp.sent} of {result.whatsapp.attempted} attempted.
+                  {result.whatsapp.failed.length > 0 && (
+                    <span> {result.whatsapp.failed.length} didn't go through — usually the 24-hour window limit noted above.</span>
+                  )}
+                </div>
+              )
+            )}
+          </div>
+        )}
+
+        <button className="btn gold btn-block" onClick={send} disabled={sending}>
+          {sending ? "Sending…" : "Send announcement"}
+        </button>
+      </div>
     </div>
   );
 }
@@ -480,6 +629,18 @@ function Dashboard({ token, user, onNavigate }) {
             {data.pendingPaymentsCount !== undefined && <StatRow icon="💰" label="Pending Payments" value={data.pendingPaymentsCount} />}
           </div>
 
+          {data.pendingRsvpCount > 0 && (
+            <div className="card" style={{marginBottom:16, cursor:"pointer", borderColor:"var(--marigold-500)"}} onClick={()=>onNavigate("reports")}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div>
+                  <div style={{fontWeight:700,color:"var(--teal-900)"}}>📢 Not Yet RSVP'd</div>
+                  <div style={{color:"var(--muted)",fontSize:12.5,marginTop:2}}>{data.pendingRsvpEventName} — tap to see who to follow up with</div>
+                </div>
+                <div style={{fontFamily:"'Newsreader',serif",fontSize:28,fontWeight:700,color:"var(--marigold-600)"}}>{data.pendingRsvpCount}</div>
+              </div>
+            </div>
+          )}
+
           <div className="section-label">Quick Actions</div>
           <div className="qa-grid">
             <QuickAction icon="🎉" label="Create Event" onClick={()=>onNavigate("events")} />
@@ -538,7 +699,7 @@ function Membership({ token }) {
     for (const fam of familyMembers) {
       if (!fam.Name.trim()) continue;
       await api("saveMember", { record: JSON.stringify({
-        Name: fam.Name, DOB: fam.DOB, Email: fam.Email, Phone: fam.Phone,
+        Name: fam.Name, DOB: fam.DOB, Email: fam.Email, Phone: fam.Phone, Relationship: fam.Relationship,
         FamilyGroup: primaryId, MealPlan: form.MealPlan,
         MealPlanStartDate: form.MealPlanStartDate, MealPlanEndDate: form.MealPlanEndDate,
         MembershipStatus: form.MembershipStatus
@@ -595,6 +756,8 @@ function Membership({ token }) {
 
 const MEAL_PLAN_OPTIONS = ["Yearly", "Half-Yearly", "Monthly", "Per Event", "Not applicable"];
 
+const RELATIONSHIP_OPTIONS = ["Spouse", "Child", "Parent", "Sibling", "Other"];
+
 function MemberModal({ record, onClose, onSave }) {
   const isNew = !record.MemberID;
   const [form, setForm] = useState({
@@ -606,9 +769,10 @@ function MemberModal({ record, onClose, onSave }) {
     MembershipStatus: record.MembershipStatus || "Active", Notes: record.Notes || ""
   });
   const [familyMembers, setFamilyMembers] = useState([]);
+  const [formError, setFormError] = useState("");
   const set = k => e => setForm({ ...form, [k]: e.target.value });
 
-  const addFamilyRow = () => setFamilyMembers([...familyMembers, { Name:"", DOB:"", Email:"", Phone:"" }]);
+  const addFamilyRow = () => setFamilyMembers([...familyMembers, { Name:"", DOB:"", Email:"", Phone:"", Relationship:"Spouse" }]);
   const updateFamilyRow = (i, k, v) => {
     const next = [...familyMembers];
     next[i] = { ...next[i], [k]: v };
@@ -616,14 +780,31 @@ function MemberModal({ record, onClose, onSave }) {
   };
   const removeFamilyRow = (i) => setFamilyMembers(familyMembers.filter((_, idx) => idx !== i));
 
+  const validateAndSave = () => {
+    setFormError("");
+    if (!form.Name.trim()) { setFormError("Name is required."); return; }
+    if (!form.DOB) { setFormError("Date of birth is required."); return; }
+    if (isNew) {
+      if (!form.Email.trim()) { setFormError("Email is required."); return; }
+      if (!form.Phone.trim()) { setFormError("Phone is required."); return; }
+    }
+    for (let i = 0; i < familyMembers.length; i++) {
+      const fam = familyMembers[i];
+      if (!fam.Name.trim()) { setFormError("Family member " + (i+1) + " needs a name."); return; }
+      if (!fam.DOB) { setFormError(fam.Name + "'s date of birth is required."); return; }
+    }
+    onSave(form, familyMembers);
+  };
+
   return (
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={e=>e.stopPropagation()}>
         <h3>{record.MemberID ? "Edit member" : "Add member"}</h3>
-        <div className="field"><label>Name</label><input value={form.Name} onChange={set("Name")} /></div>
-        <div className="field"><label>Date of birth</label><input type="date" value={form.DOB} onChange={set("DOB")} /></div>
-        <div className="field"><label>Email</label><input value={form.Email} onChange={set("Email")} /></div>
-        <div className="field"><label>Phone</label><input value={form.Phone} onChange={set("Phone")} /></div>
+        {formError && <div className="error-msg">{formError}</div>}
+        <div className="field"><label>Name *</label><input value={form.Name} onChange={set("Name")} /></div>
+        <div className="field"><label>Date of birth *</label><input type="date" value={form.DOB} onChange={set("DOB")} /></div>
+        <div className="field"><label>Email {isNew && "*"}</label><input value={form.Email} onChange={set("Email")} /></div>
+        <div className="field"><label>Phone {isNew && "*"}</label><input value={form.Phone} onChange={set("Phone")} /></div>
         <div className="field">
           <label>Membership status</label>
           <select value={form.MembershipStatus} onChange={set("MembershipStatus")}>
@@ -637,10 +818,10 @@ function MemberModal({ record, onClose, onSave }) {
           </select>
         </div>
         {(form.MealPlan === "Yearly" || form.MealPlan === "Half-Yearly") && (
-          <div style={{display:"flex",gap:10}}>
-            <div className="field" style={{flex:1}}><label>Plan start date</label><input type="date" value={form.MealPlanStartDate} onChange={set("MealPlanStartDate")} /></div>
-            <div className="field" style={{flex:1}}><label>Plan end date (renewal due)</label><input type="date" value={form.MealPlanEndDate} onChange={set("MealPlanEndDate")} /></div>
-          </div>
+          <React.Fragment>
+            <div className="field"><label>Plan start date</label><input type="date" value={form.MealPlanStartDate} onChange={set("MealPlanStartDate")} /></div>
+            <div className="field"><label>Plan end date (renewal due)</label><input type="date" value={form.MealPlanEndDate} onChange={set("MealPlanEndDate")} /></div>
+          </React.Fragment>
         )}
         <div className="field"><label>Notes</label><input value={form.Notes} onChange={set("Notes")} /></div>
 
@@ -651,19 +832,33 @@ function MemberModal({ record, onClose, onSave }) {
               <button className="btn ghost sm" type="button" onClick={addFamilyRow}>+ Add</button>
             </div>
             {familyMembers.length === 0 && (
-              <p style={{color:"var(--muted)",fontSize:12.5,margin:"0 0 8px"}}>Add spouse, children, or other household members here — they'll share this member's dues and meal plan.</p>
+              <p style={{color:"var(--muted)",fontSize:12.5,margin:"0 0 8px"}}>Add spouse, children, or other household members here — they'll share this member's dues and meal plan. Name, date of birth, and relationship to {form.Name || "this member"} are required; email and phone are optional for family members.</p>
             )}
             {familyMembers.map((fam, i) => (
               <div key={i} style={{border:"1px solid var(--border)",borderRadius:6,padding:10,marginBottom:8,position:"relative"}}>
                 <button type="button" onClick={()=>removeFamilyRow(i)} aria-label="Remove"
                   style={{position:"absolute",top:6,right:6,background:"none",border:"none",color:"var(--muted)",cursor:"pointer",fontSize:13}}>&#10005;</button>
                 <div className="field" style={{marginBottom:8}}>
-                  <label>Name</label>
+                  <label>Name *</label>
                   <input value={fam.Name} onChange={e=>updateFamilyRow(i,"Name",e.target.value)} />
                 </div>
-                <div className="field" style={{marginBottom:0}}>
-                  <label>Date of birth</label>
+                <div className="field" style={{marginBottom:8}}>
+                  <label>Date of birth *</label>
                   <input type="date" value={fam.DOB} onChange={e=>updateFamilyRow(i,"DOB",e.target.value)} />
+                </div>
+                <div className="field" style={{marginBottom:8}}>
+                  <label>Relationship to {form.Name || "main contact"} *</label>
+                  <select value={fam.Relationship} onChange={e=>updateFamilyRow(i,"Relationship",e.target.value)}>
+                    {RELATIONSHIP_OPTIONS.map(o => <option key={o}>{o}</option>)}
+                  </select>
+                </div>
+                <div className="field" style={{marginBottom:8}}>
+                  <label>Email (optional)</label>
+                  <input value={fam.Email} onChange={e=>updateFamilyRow(i,"Email",e.target.value)} />
+                </div>
+                <div className="field" style={{marginBottom:0}}>
+                  <label>Phone (optional)</label>
+                  <input value={fam.Phone} onChange={e=>updateFamilyRow(i,"Phone",e.target.value)} />
                 </div>
               </div>
             ))}
@@ -672,7 +867,7 @@ function MemberModal({ record, onClose, onSave }) {
 
         <div className="row-actions">
           <button className="btn ghost" onClick={onClose}>Cancel</button>
-          <button className="btn gold" onClick={()=>onSave(form, familyMembers)}>Save</button>
+          <button className="btn gold" onClick={validateAndSave}>Save</button>
         </div>
       </div>
     </div>
@@ -1185,7 +1380,7 @@ function CheckIn({ token }) {
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,flexWrap:"wrap"}}>
               <div>
                 <strong style={{fontSize:13.5}}>🖨️ Printable backup list</strong>
-                <p style={{color:"var(--muted)",fontSize:12,margin:"2px 0 0"}}>In case the app or internet drops on the day \u2014 Name, ID, and meal, sorted A\u2013Z, with a tick column.</p>
+                <p style={{color:"var(--muted)",fontSize:12,margin:"2px 0 0"}}>In case the app or internet drops on the day — Name, ID, and meal, sorted A–Z, with a tick column.</p>
               </div>
               <button className="btn ghost sm" onClick={generateBackupSheet} disabled={generating || !bookingsLoaded}>
                 {generating ? "Generating\u2026" : "Generate"}
@@ -1194,7 +1389,7 @@ function CheckIn({ token }) {
             {backupSheet && (
               <p style={{fontSize:12.5,marginTop:10,marginBottom:0}}>
                 Created <strong>{backupSheet.count}</strong> row{backupSheet.count===1?"":"s"} in a sheet tab called <code>{backupSheet.sheetName}</code>. {" "}
-                <a href={backupSheet.sheetUrl} target="_blank" rel="noopener noreferrer">Open it to print \u2192</a>
+                <a href={backupSheet.sheetUrl} target="_blank" rel="noopener noreferrer">Open it to print →</a>
               </p>
             )}
           </div>
@@ -1304,6 +1499,9 @@ function Reports({ token, user }) {
   });
   const [attendance, setAttendance] = useState(null);
   const [attendanceError, setAttendanceError] = useState("");
+  const [pendingEventId, setPendingEventId] = useState("");
+  const [pending, setPending] = useState(null);
+  const [pendingError, setPendingError] = useState("");
   const canvasRef1 = useRef(null);
   const canvasRef2 = useRef(null);
   const chartRefs = useRef([]);
@@ -1323,6 +1521,16 @@ function Reports({ token, user }) {
     setAttendanceError("");
     api("attendanceReport", { fyStartYear: fyYear }, token).then(r => setAttendance(r.data)).catch(e => setAttendanceError(e.message));
   }, [fyYear, token]);
+
+  useEffect(() => {
+    if (data && data.pendingRsvpEventId && !pendingEventId) setPendingEventId(data.pendingRsvpEventId);
+  }, [data]);
+
+  useEffect(() => {
+    if (!pendingEventId) { setPending(null); return; }
+    setPendingError("");
+    api("pendingRsvp", { eventId: pendingEventId }, token).then(r => setPending(r.data)).catch(e => setPendingError(e.message));
+  }, [pendingEventId, token]);
 
   useEffect(() => {
     if (!data) return;
@@ -1356,6 +1564,37 @@ function Reports({ token, user }) {
 
   return (
     <div>
+      <div className="card" style={{marginBottom:16}}>
+        <h3 style={{marginTop:0}}>Who hasn't RSVP'd yet</h3>
+        <p style={{color:"var(--muted)",fontSize:12.5,marginTop:-6}}>One row per family — someone excluded from their own family's RSVP won't show up here separately, since their family already responded.</p>
+        <div className="field" style={{marginBottom: pendingEventId ? 16 : 0}}>
+          <label>Event</label>
+          <select value={pendingEventId} onChange={e=>setPendingEventId(e.target.value)}>
+            <option value="">Choose an event…</option>
+            {(events||[]).map(e => <option key={e.EventID} value={e.EventID}>{e.Name} ({e.EventID})</option>)}
+          </select>
+        </div>
+        {pendingError && <div className="error-msg">{pendingError}</div>}
+        {pendingEventId && !pending && !pendingError && <div style={{color:"var(--muted)",fontSize:13}}>Loading…</div>}
+        {pending && (
+          pending.pending.length === 0 ? <EmptyRow text="Everyone's responded — nothing to follow up on" /> : (
+            <div className="scroll-x">
+              <table>
+                <thead><tr><th>Name</th><th>Member ID</th><th>Phone</th><th>Email</th></tr></thead>
+                <tbody>
+                  {pending.pending.map((m,i) => (
+                    <tr key={i}>
+                      <td>{m.Name}</td><td>{m.MemberID}</td>
+                      <td>{m.Phone || "—"}</td><td>{m.Email || "—"}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
+        )}
+      </div>
+
       <div className="card" style={{marginBottom:16}}>
         <h3 style={{marginTop:0}}>Catering / meal report</h3>
         <p style={{color:"var(--muted)",fontSize:12.5,marginTop:-6}}>Pick an event to see exactly how many Standard, Jain, and No Meal to prepare — broken down by member vs. guest, adult vs. child.</p>
