@@ -4,13 +4,17 @@
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <title>GGNZ Membership Portal</title>
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" href="apple-touch-icon.png">
+<link rel="manifest" href="portal-manifest.json">
+<meta name="theme-color" content="#0d332e">
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600;6..72,700&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 
-<script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" defer></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" defer></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js" defer></script>
 <script src="https://www.google.com/recaptcha/api.js" async defer></script>
 
 <style>
@@ -86,7 +90,15 @@
 </style>
 </head>
 <body>
-<div id="root"></div>
+<div id="root">
+  <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:var(--teal-900);">
+    <div style="text-align:center;">
+      <div style="width:48px;height:48px;border:3px solid rgba(255,255,255,0.25);border-top-color:var(--marigold-500);border-radius:50%;animation:spin 0.8s linear infinite;margin:0 auto 12px;"></div>
+      <div style="color:#c3d6cc;font-family:'Manrope',sans-serif;font-size:13px;">Loading&hellip;</div>
+    </div>
+  </div>
+</div>
+<style>@keyframes spin{to{transform:rotate(360deg)}}</style>
 
 <script type="text/babel">
 const { useState, useEffect, useRef } = React;
@@ -96,24 +108,43 @@ const { useState, useEffect, useRef } = React;
    ============================================================ */
 const API_URL = "https://script.google.com/macros/s/AKfycbxLqfRdxZKFPs-YKiGniG_SlNJ6ZpA9izhonCkHsVvQ-CsPlpRv4ddN3WfRkPHUhMDWfQ/exec";
 
-let jsonpCounter = 0;
-function jsonpRequest(params) {
-  return new Promise((resolve, reject) => {
-    const cbName = "ggnzPortalCb_" + (jsonpCounter++) + "_" + Date.now();
-    const script = document.createElement("script");
-    const cleanup = () => { delete window[cbName]; document.body.removeChild(script); };
-    window[cbName] = (data) => { cleanup(); resolve(data); };
-    const qs = Object.keys(params).map(k => encodeURIComponent(k) + "=" + encodeURIComponent(params[k])).join("&");
-    script.src = API_URL + "?callback=" + cbName + "&" + qs;
-    script.onerror = () => { cleanup(); reject(new Error("Network error contacting the API")); };
-    document.body.appendChild(script);
-  });
-}
+/**
+ * Optional — only enforced if PUBLIC_CLIENT_KEY is also set in Apps
+ * Script's Script Properties. This is NOT a real secret (this file is
+ * public source), just a filter against generic bot scanning — see the
+ * comment on PUBLIC_ACTIONS in Code.gs for the honest picture of what
+ * this does and doesn't protect against. Leave blank to skip it entirely.
+ */
+const PUBLIC_CLIENT_KEY = "ggnz-2026-x7k2m";
+
+/**
+ * POST body instead of URL query string — keeps the member's search
+ * query, CAPTCHA token, etc. out of the browser's URL bar/history, and
+ * gives real error handling instead of relying on <script> onerror.
+ * Content-Type is "text/plain" specifically to avoid a CORS preflight
+ * (OPTIONS) request, which Apps Script Web Apps don't support — the
+ * backend still parses the body as JSON on arrival.
+ */
 async function api(action, params) {
   if (!API_URL || API_URL.indexOf("PASTE_YOUR") === 0) {
     throw new Error("API not configured yet — the organizer needs to set API_URL in this file.");
   }
-  const result = await jsonpRequest(Object.assign({ action }, params || {}));
+  const payload = Object.assign({ action }, params || {});
+  if (PUBLIC_CLIENT_KEY) payload.clientKey = PUBLIC_CLIENT_KEY;
+  let response;
+  try {
+    response = await fetch(API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(payload)
+    });
+  } catch (networkErr) {
+    throw new Error("Network error contacting the API");
+  }
+  if (!response.ok) {
+    throw new Error("Server error (" + response.status + ") contacting the API");
+  }
+  const result = await response.json();
   if (!result.ok) throw new Error(result.error || "Something went wrong");
   return result;
 }
@@ -171,8 +202,12 @@ function CaptchaWidget({ siteKey, onVerify, resetSignal }) {
 /* ============================================================
    LOOKUP SCREEN
    ============================================================ */
+const SAVED_ID_KEY = "ggnz_last_member_id";
+
 function LookupScreen({ onFound }) {
-  const [query, setQuery] = useState("");
+  const [query, setQuery] = useState(() => {
+    try { return localStorage.getItem(SAVED_ID_KEY) || ""; } catch (e) { return ""; }
+  });
   const [captchaToken, setCaptchaToken] = useState("");
   const [siteKey, setSiteKey] = useState("");
   const [error, setError] = useState("");
@@ -190,12 +225,18 @@ function LookupScreen({ onFound }) {
     setLoading(true);
     try {
       const res = await api("memberLookup", { query, captcha: captchaToken });
+      try { localStorage.setItem(SAVED_ID_KEY, res.data.member.MemberID); } catch (e) { /* storage unavailable — not critical */ }
       onFound(res.data, res.data.member.MemberID);
     } catch (err) {
       setError(err.message);
       setCaptchaToken("");
       setResetSignal(s => s + 1);
     } finally { setLoading(false); }
+  };
+
+  const forgetSavedId = () => {
+    try { localStorage.removeItem(SAVED_ID_KEY); } catch (e) {}
+    setQuery("");
   };
 
   return (
@@ -206,7 +247,7 @@ function LookupScreen({ onFound }) {
         <form onSubmit={submit}>
           <div className="field">
             <label>Member ID or mobile number</label>
-            <input value={query} onChange={e=>setQuery(e.target.value)} placeholder=" " required autoFocus />
+            <input value={query} onChange={e=>setQuery(e.target.value)} placeholder="e.g. GGNZ-0001 or 021 234 5678" required autoFocus />
           </div>
           <CaptchaWidget siteKey={siteKey} onVerify={setCaptchaToken} resetSignal={resetSignal} />
           <button className="btn gold btn-block" type="submit" disabled={loading}>
@@ -216,6 +257,7 @@ function LookupScreen({ onFound }) {
       </div>
       <p style={{textAlign:"center",color:"var(--muted)",fontSize:12.5}}>
         Don't know your Member ID? Just use your mobile number instead.
+        {query && <React.Fragment><br/><button className="link-btn" style={{fontSize:12.5,marginTop:4}} onClick={forgetSavedId}>Not you? Clear saved ID</button></React.Fragment>}
       </p>
     </div>
   );
@@ -473,7 +515,7 @@ function RsvpTab({ member, family }) {
           })}
 
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:18,marginBottom:10}}>
-            <div className="section-label" style={{margin:0}}>Guests (relatives only, Strictly No Freineds Please)</div>
+            <div className="section-label" style={{margin:0}}>Guests (relatives only, non-members)</div>
             <button className="btn ghost sm" type="button" onClick={addGuest}>+ Add Guest</button>
           </div>
           <p style={{color:"var(--muted)",fontSize:12,marginTop:-4}}>Adult (12+) = $20 · Child (5–12) = $10 · Under 5 = Free — only charged if a meal is selected.</p>
@@ -507,10 +549,10 @@ function RsvpTab({ member, family }) {
           ))}
 
           <div className="card" style={{marginTop:16,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-            <div style={{fontWeight:700}}>Total Amount</div>
+            <div style={{fontWeight:700}}>Estimated total</div>
             <div style={{fontFamily:"'Newsreader',serif",fontSize:22,fontWeight:700,color:"var(--teal-900)"}}>${total}</div>
           </div>
-          <p style={{color:"var(--muted)",fontSize:11.5,marginTop:6}}>The committee will confirm your booking once payment has been verified.</p>
+          <p style={{color:"var(--muted)",fontSize:11.5,marginTop:6}}>This is an estimate — the committee confirms your booking and payment separately.</p>
 
           <button className="btn gold btn-block" style={{marginTop:6}} onClick={submit} disabled={submitting}>
             {submitting ? "Sending…" : "Submit RSVP"}
@@ -555,7 +597,7 @@ function App() {
     <div className="wrap">
       <div className="hero">
         <img src="ggnz-logo.png" alt="GGNZ logo" style={{width:76,height:76,margin:"0 auto 10px",display:"block"}} />
-        <div className="org">Garvi Gujarat NZ</div>
+        <div className="org">Garvi Gujarat NZ Charitable Trust</div>
         <h1>Membership Portal</h1>
         <p>Your card, your RSVPs, all in one place</p>
       </div>
